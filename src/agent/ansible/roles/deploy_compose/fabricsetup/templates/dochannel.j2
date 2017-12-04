@@ -2,7 +2,7 @@
 
 {% if fabric.tls %}
 
-# Set up environment varilables first
+echo 'Set up environment varilables first'
 
 export CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/allorgs/{{ clipeer.org }}/peers/{{ clipeer.name }}.{{ clipeer.org }}/tls/server.key
 export CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/allorgs/{{ clipeer.org }}/peers/{{ clipeer.name }}.{{ clipeer.org }}/tls/ca.crt
@@ -11,7 +11,7 @@ export CORE_PEER_ADDRESS={{ clipeer.name }}:7051
 export CORE_PEER_LOCALMSPID={{ clipeer.org }}
 export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/allorgs/{{ clipeer.org }}/users/Admin@{{ clipeer.org }}/msp
 
-# Run the peer channel create command
+echo 'Run the peer channel create command'
 cd /etc/hyperledger/allorgs
 peer channel create -o {{ cliorderer.name }}:7050 -c firstchannel \
   -f /etc/hyperledger/allorgs/firstchannel.tx --tls true --timeout 120 \
@@ -53,7 +53,7 @@ peer chaincode instantiate -o {{ cliorderer.name }}:7050 --tls true \
 
 {% else %}
 
-# Set up environment varilables first
+echo 'Set up environment varilables first'
 
 export CORE_PEER_ID={{ clipeer.name }}
 export CORE_PEER_ADDRESS={{ clipeer.name }}:7051
