@@ -1,0 +1,30 @@
+---
+version: '2'
+
+services:
+
+{% for server in servers %}
+  {{ server }}:
+    container_name: {{ server }}
+    image: node:8.9
+    network_mode: bridge
+    hostname: {{ server }}
+    environment:
+      - CORE_LOGGING_LEVEL=debug
+      - HFC_LOGGING={"debug":"console"}
+    working_dir: /app
+# tcpdump -i eth0 -w /out.log -s 0 -vvv &
+    command: bash -c 'apt-get update;
+                      apt-get install -y jq;
+                      chmod +100 testAPI.sh; 
+                      sleep 2;
+                      npm install;
+                      node app & ./testAPI.sh -l node;
+                      sleep 9999999'
+    ports:
+      - 4000:4000
+    volumes:
+      - {{ fabricworkdir }}/run/app/:/app/
+#      - {{ fabricworkdir }}/channel-artifacts/:/artifacts/
+      - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/allorgs
+{% endfor %}

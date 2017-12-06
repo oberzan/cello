@@ -19,6 +19,12 @@ PeerOrgs:
 {% for org in peerorgs %}
   - Name: {{ org }}
     Domain: {{ org }}
+    CA:
+{% for ca in cas %}
+{% if ca.org == org %}
+      Hostname: {{ ca.name }}
+{% endif %}
+{% endfor %}
     Specs:
 {%   for item in peers %}
 {%     if item.org == org %}

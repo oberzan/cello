@@ -1,0 +1,181 @@
+---
+# The network connection profile provides client applications the information about the target
+# blockchain network that are necessary for the applications to interact with it. These are all
+# knowledge that must be acquired from out-of-band sources. This file provides such a source.
+name: "{{ env }}"
+
+# Any properties with an "x-" prefix will be treated as application-specific, exactly like how naming
+# in HTTP headers or swagger properties work. The SDK will simply ignore these fields and leave
+# them for the applications to process. This is a mechanism for different components of an application
+# to exchange information that are not part of the standard schema described below. In particular,
+# the "x-type" property with the "hlfv1" value example below is used by Hyperledger Composer to
+# determine the type of Fabric networks (v0.6 vs. v1.0) it needs to work with.
+x-type: "hlfv1"
+
+# Describe what the target network is/does.
+description: "TODO"
+
+# Schema version of the content. Used by the SDK to apply the corresponding parsing rules.
+version: "1.0"
+
+# The client section will be added on a per org basis see org1.yaml and org2.yaml
+#client:
+
+
+channels:
+  businesschannel:
+    # Required. list of orderers designated by the application to use for transactions on this
+    # channel. This list can be a result of access control ("org1" can only access "ordererA"), or
+    # operational decisions to share loads from applications among the orderers.  The values must
+    # be "names" of orgs defined under "organizations/peers"
+    orderers: #TODO: Channels don't always need all orderers
+{% for orderer in allorderers %}
+      - {{ orderer.name }}
+{% endfor %}
+
+    # Required.
+    peers:
+      # peer0.org1.example.com:
+      #   # [Optional]. will this peer be sent transaction proposals for endorsement? The peer must
+      #   # have the chaincode installed. The app can also use this property to decide which peers
+      #   # to send the chaincode install request. Default: true
+      #   endorsingPeer: true
+
+      #   # [Optional]. will this peer be sent query proposals? The peer must have the chaincode
+      #   # installed. The app can also use this property to decide which peers to send the
+      #   # chaincode install request. Default: true
+      #   chaincodeQuery: true
+
+      #   # [Optional]. will this peer be sent query proposals that do not require chaincodes, like
+      #   # queryBlock(), queryTransaction(), etc. Default: true
+      #   ledgerQuery: true
+
+      #   # [Optional]. will this peer be the target of the SDK's listener registration? All peers can
+      #   # produce events but the app typically only needs to connect to one to listen to events.
+      #   # Default: true
+      #   eventSource: true
+
+      # peer1.org1.example.com:
+      #   endorsingPeer: false
+      #   chaincodeQuery: true
+      #   ledgerQuery: true
+      #   eventSource: true
+
+      # peer2.org1.example.com:
+      #   endorsingPeer: true
+      #   chaincodeQuery: true
+      #   ledgerQuery: true
+      #   eventSource: false
+
+      # peer0.org2.example.com:
+      #   endorsingPeer: true
+      #   chaincodeQuery: true
+      #   ledgerQuery: true
+      #   eventSource: true
+
+      # peer1.org2.example.com:
+      #   endorsingPeer: false
+      #   chaincodeQuery: true
+      #   ledgerQuery: true
+      #   eventSource: false
+      
+      # peer2.org2.example.com:
+      #   endorsingPeer: true
+      #   chaincodeQuery: true
+      #   ledgerQuery: true
+      #   eventSource: false
+
+{% for peer in allpeers %}
+      {{ peer.name }}:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+{% endfor %}
+
+    # [Optional]. what chaincodes are expected to exist on this channel? The application can use
+    # this information to validate that the target peers are in the expected state by comparing
+    # this list with the query results of getInstalledChaincodes() and getInstantiatedChaincodes()
+    
+    # chaincodes:
+      # the format follows the "cannonical name" of chaincodes by fabric code
+      # - mycc:v0
+
+
+#
+# list of participating organizations in this network
+#
+organizations:
+{% for org in peerorgs %}
+  {{ org }}:
+    mspid: {{ org }}
+    peers:
+{% for peer in allpeers %}
+{% if peer.org == org %}
+      - {{ peer.name }}
+{% endif %}
+{% endfor %}
+    certificateAuthorities:
+      - ca1-{{ org }} #TODO
+    adminPrivateKey:
+      path: /etc/hyperledger/allorgs/{{ org }}/users/Admin@{{ org }}/msp/keystore/{{ adminkeys[org] }}
+    signedCert:
+      path: /etc/hyperledger/allorgs/{{ org }}/users/Admin@{{ org }}/msp/signcerts/Admin@{{ org }}-cert.pem
+{% endfor %}
+
+
+orderers:
+{% for orderer in allorderers %}
+  {{ orderer.name }}:
+    url: grpc://{{ orderer.name }}:7050
+  
+    # these are standard properties defined by the gRPC library
+    # they will be passed in as-is to gRPC client constructor
+    # grpcOptions:
+    #   ssl-target-name-override: {{ orderer.name }} #tlsca.example.com #
+    #    grpc-max-send-message-length: 15
+
+    # tlsCACerts:
+    #   path: /etc/hyperledger/allorgs/{{ orderer.org }}/orderers/{{ orderer.name }}.{{ orderer.org }}/tls/ca.crt
+{% endfor %}
+
+
+peers:
+{% for peer in allpeers %}
+  {{ peer.name }}:
+    url: grpc://{{ peer.name }}:7051
+    eventUrl: grpc://{{ peer.name }}:7053
+    # grpcOptions:
+    #   ssl-target-name-override: peer0.org1.example.com
+    # tlsCACerts:
+    #   path: /etc/hyperledger/allorgs/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+
+{% endfor %}
+
+
+
+#
+# Fabric-CA is a special kind of Certificate Authority provided by Hyperledger Fabric which allows
+# certificate management to be done via REST APIs. Application may choose to use a standard
+# Certificate Authority instead of Fabric-CA, in which case this section would not be specified.
+#
+certificateAuthorities:
+{% for ca in allcas if ca.org in peerorgs %}
+  {{ ca.name }}:
+    url: http://{{ ca.name }}:7054
+
+    # the properties specified under this object are passed to the 'http' client verbatim when
+    # making the request to the Fabric-CA server
+    httpOptions:
+      verify: false
+    # tlsCACerts:
+    #   path: /etc/hyperledger/allorgs/{{ ca.org }}/ca/{{ ca.name }}-cert.pem
+
+    # Fabric-CA supports dynamic user enrollment via REST APIs. A "root" user, a.k.a registrar, is
+    # needed to enroll and invoke new users.
+    registrar:
+      - enrollId: {{ fabric.ca.admin }}
+        enrollSecret: {{ fabric.ca.adminpw }}
+    # [Optional] The optional name of the CA.
+    caName: {{ ca.name }}
+{% endfor %}

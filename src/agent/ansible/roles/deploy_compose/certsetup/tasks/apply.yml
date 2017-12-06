@@ -17,7 +17,8 @@
   set_fact:
     cas: |
       {{ cas | default([]) + [{ 'org':item.split('.')[-1],
-        'name':item | replace('.', '-') }] }}
+        'name':item | replace('.', '-'),
+        'hostname':item.split('.')[0]}] }}
   with_items: "{{ cals }}"
   when: cals | length > 0
 
@@ -117,7 +118,7 @@
     {{ fabricpath }}/build/bin/configtxgen -profile OrdererGenesis
     -outputBlock keyfiles/genesis.block -channelID orderersystemchannel &&
     {{ fabricpath }}/build/bin/configtxgen -profile OrgChannel
-    -outputCreateChannelTx keyfiles/firstchannel.tx -channelID firstchannel
+    -outputCreateChannelTx keyfiles/businesschannel.tx -channelID businesschannel
   args:
     chdir: "{{ fabricworkdir }}"
 
@@ -126,7 +127,7 @@
     export FABRIC_CFG_PATH={{ fabricworkdir }} &&
     {{ fabricpath }}/build/bin/configtxgen -profile OrgChannel
     -outputAnchorPeersUpdate keyfiles/{{ item }}.anchor.tx
-    -channelID firstchannel -asOrg {{ item }}
+    -channelID businesschannel -asOrg {{ item }}
   args:
     chdir: "{{ fabricworkdir }}"
   with_items: "{{ peerorgs }}"
@@ -135,7 +136,7 @@
   shell: >-
     cp {{ fabricworkdir }}/keyfiles/genesis.block
     {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }} &&
-    cp {{ fabricworkdir }}/keyfiles/firstchannel.tx
+    cp {{ fabricworkdir }}/keyfiles/businesschannel.tx
     {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }}
   args:
     chdir: "{{ fabricworkdir }}"

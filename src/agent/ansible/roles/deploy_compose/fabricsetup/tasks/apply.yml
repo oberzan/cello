@@ -13,6 +13,7 @@
     orderers: "{{ [] }}"
     cas: "{{ [] }}"
     cakeys: "{{ {} }}"
+    adminkeys: "{{ {} }}"
     kafkas: "{{ [] }}"
     kafkanodes: ""
     zookeepers: "{{ [] }}"
@@ -26,6 +27,7 @@
     peerls: "{{ [] }}"
     ordererls: "{{ [] }}"
     cals: "{{ [] }}"
+    serverls: "{{ [] }}"
     allpeers: "{{ [] }}"
     clihost: ""
     filterstr: ""
@@ -51,6 +53,7 @@
     peerls: "{{ peerls | default([]) + item.value.peers | default([]) }}"
     zookeeperls: "{{ zookeeperls | default([]) + item.value.zookeepers | default([]) }}"
     kafkals: "{{ kafkals | default([]) + item.value.kafkas | default([]) }}"
+    serverls: "{{ serverls | default([]) + item.value.servers | default([]) }}"
   with_dict: "{{ fabric.network }}"
 
 - name: Sort component list
@@ -124,6 +127,7 @@
   set_fact:
     zookeepers: "{{ fabric.network[current_host].zookeepers | default([]) }}"
     kafkas: "{{ fabric.network[current_host].kafkas | default([]) }}"
+    servers: "{{ fabric.network[current_host].servers | default([]) }}"
 
 - name: Pull certificates from the builder machine
   command: >-
@@ -178,6 +182,16 @@
   when: cas | length > 0
   register: privatekeys
 
+- name: Process admin key files
+  find:
+    paths: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}/users/Admin@{{ item.org }}/msp/keystore"
+    patterns: "*_sk"
+    recurse: yes
+  with_items:
+    - "{{ allcas }}"
+  when: servers | length > 0
+  register: adminprocesskeys
+
 - name: Process private key files
   template:
     src: "{{ playbook_dir }}/../deploy_compose/fabricsetup/templates/fabric-ca-server-config.j2"
@@ -190,6 +204,20 @@
       {{ cakeys | combine( {item.item[0].org+'_'+item.item[1]: item.files[0].path.split('/')[-1] } ) }}
   with_items: "{{ privatekeys.results }}"
   no_log: True
+
+- debug:
+    msg: "{{ adminprocesskeys.results }}"
+
+- name: Setup admin private key values
+  set_fact:
+    adminkeys: |
+      {{ adminkeys | combine( {item.item.org: item.files[0].path.split('/')[-1] } ) }}
+  with_items: "{{ adminprocesskeys.results }}"
+  when: servers | length > 0
+  no_log: True
+
+- debug:
+    msg: "{{ adminkeys }}"
 
 - name: Get the peer org list
   set_fact:
@@ -210,6 +238,7 @@
     - "hyperledger/fabric-peer:{{ thetag }}"
     - "hyperledger/fabric-orderer:{{ thetag }}"
     - "hyperledger/fabric-couchdb:{{ thetag }}"
+    - "node:8.9"
 
 - name: Create docker compose files
   template:
@@ -222,6 +251,7 @@
     - { name: "kafka-compose", flag: "{{ kafkas }}" }
     - { name: "orderer-compose", flag: "{{ orderers }}" }
     - { name: "peer-compose", flag: "{{ peers }}" }
+    - { name: "server-compose", flag: "{{ servers }}" }
 
 - name: Start fabric components
   command: "docker-compose -p {{ env }}.{{ item.name }} -f {{ fabricworkdir }}/run/{{ item.name }}.yml up -d"
@@ -232,6 +262,7 @@
     - { name: "kafka-compose", flag: "{{ kafkas }}" }
     - { name: "orderer-compose", flag: "{{ orderers }}" }
     - { name: "peer-compose", flag: "{{ peers }}" }
+#    - { name: "server-compose", flag: "{{servers}}" }
   tags: "fabricup"
 
 - name: Locate a host to run peer channel create command
@@ -242,37 +273,102 @@
   when: peers | length > 0 and clihost == ""
   with_items: "{{ groups['allnodes'] }}"
 
-- name: Make sure that working directory exists and clean
-  file:
-    path: "{{ fabricworkdir }}/run/keyfiles/chaincode"
-    state: "directory"
-    mode: 0775
-  when: clihost == inventory_hostname
+# - debug: 
+#     msg: "{{ privatekeys }}"
 
-- name: Move chaincode to the server
+# - debug: 
+#     msg: "{{ cakeys }}"
+
+- debug: 
+    msg: "{{ peerorgs }}"
+
+- debug: 
+    msg: "{{ cals }}"
+
+- debug:
+    msg: "{{ allcas }}"
+
+- debug:
+    msg: "{{ item }}"
+  when: item.org in peerorgs
+  with_items: "{{ allcas }}"
+
+#- name: Get all cakeys object list
+#  set_fact:
+#    allcakeys: |
+#      {{ allcakeys | default([]) + [{ 'org':item.split('.')[-1],
+#        'name':item | replace('.', '-') }] }}
+#  with_items: "{{ ordererls }}"
+
+
+
+- name: Copy app directory to server hosts
   copy:
-    src: "{{ playbook_dir }}/fabricsetup/templates/firstcode.go"
-    dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/firstcode.go"
-    mode: "u=rw,g=rw"
-  when: clihost == inventory_hostname
+    src: "{{ playbook_dir }}/fabricsetup/files/app"
+    dest: "{{ fabricworkdir }}/run"
+  when: servers | length > 0
 
-- name: Create peer channel command script
+- name: Template configs
   template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/dochannel.j2"
-    dest: "{{ fabricworkdir }}/run/keyfiles/dochannel.sh"
-    mode: "u=rx,g=rx"
-  when: clihost == inventory_hostname
+    src: "{{ playbook_dir }}/fabricsetup/templates/config.js"
+    dest: "{{ fabricworkdir }}/run/app/configs/"
+  when: servers | length > 0
 
-- name: Create peer channel command docker compose file
+- name: Template configs
   template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/cli-compose.j2"
-    dest: "{{ fabricworkdir }}/run/cli-compose.yml"
-  when: clihost == inventory_hostname
+    src: "{{ playbook_dir }}/fabricsetup/templates/network-config.j2"
+    dest: "{{ fabricworkdir }}/run/app/configs/network-config.yml"
+  when: servers | length > 0
 
-- name: Wait for containers to be ready
-  pause:
-    seconds: 30
+- name: Template org configs
+  template:
+    src: "{{ playbook_dir }}/fabricsetup/templates/org-config.j2"
+    dest: "{{ fabricworkdir }}/run/app/configs/{{ item }}-config.yml"
+  when: servers | length > 0
+  with_items: "{{ peerorgs }}"
 
-- name: Start fabriccli components
-  command: "docker-compose -p {{ env }}.cli -f {{ fabricworkdir }}/run/cli-compose.yml up -d"
-  when: clihost == inventory_hostname
+- name: Start the server
+  docker_service:
+    project_src: "{{ fabricworkdir }}/run"
+    files: 
+      - server-compose.yml
+    state: present
+    recreate: always
+  when: servers | length > 0
+  tags: "fabricup"
+
+
+# - name: Make sure that working directory exists and clean
+#   file:
+#     path: "{{ fabricworkdir }}/run/keyfiles/chaincode"
+#     state: "directory"
+#     mode: 0775
+#   when: clihost == inventory_hostname
+
+# - name: Move chaincode to the server
+#   copy:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/firstcode.go"
+#     dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/firstcode.go"
+#     mode: "u=rw,g=rw"
+#   when: clihost == inventory_hostname
+
+# - name: Create peer channel command script
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/dochannel.j2"
+#     dest: "{{ fabricworkdir }}/run/keyfiles/dochannel.sh"
+#     mode: "u=rx,g=rx"
+#   when: clihost == inventory_hostname
+
+# - name: Create peer channel command docker compose file
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/cli-compose.j2"
+#     dest: "{{ fabricworkdir }}/run/cli-compose.yml"
+#   when: clihost == inventory_hostname
+
+# - name: Wait for containers to be ready
+#   pause:
+#     seconds: 30
+
+# - name: Start fabriccli components
+#   command: "docker-compose -p {{ env }}.cli -f {{ fabricworkdir }}/run/cli-compose.yml up -d"
+#   when: clihost == inventory_hostname

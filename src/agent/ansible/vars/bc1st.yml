@@ -25,13 +25,15 @@ fabric: {
   # kafka indicates kafka containers
   # all names must be in lower case. Numeric characters cannot be used to start
   # or end a name. Character dot (.) can only be used in names of peers and orderers.
+
   network: {
     fabric001: {
       cas: ["ca1.org1", "ca1.ordererorg1"],
       peers: ["anchor@peer1.org1", "anchor@peer1.org2"],
       orderers: ["orderer1.ordererorg1"],
       zookeepers: ["zookeeper1"],
-      kafkas: ["kafka1"]
+      kafkas: ["kafka1"],
+      servers: ["server1"]
     },
     fabric002: {
       cas: ["ca1.org2"],
