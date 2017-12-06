@@ -116,7 +116,7 @@ organizations:
 {% endif %}
 {% endfor %}
     certificateAuthorities:
-      - ca1-{{ org }} #TODO
+      - ca1.{{ org }} #TODO
     adminPrivateKey:
       path: /etc/hyperledger/allorgs/{{ org }}/users/Admin@{{ org }}/msp/keystore/{{ adminkeys[org] }}
     signedCert:

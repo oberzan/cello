@@ -91,7 +91,7 @@
   set_fact:
     allcas: |
       {{ allcas | default([]) + [{ 'org':item.split('.')[-1],
-        'name':item | replace('.', '-') }] }}
+        'name':item }] }}
   with_items: "{{ cals }}"
 
 - name: Get all orderer object list
@@ -113,7 +113,7 @@
   set_fact:
     cas: |
       {{ cas + [{'org':item.split('.')[-1],
-        'name':item | replace('.', '-') }] }}
+        'name':item }] }}
   with_items: "{{ fabric.network[current_host].cas | default([]) }}"
 
 - name: Get orderer container list

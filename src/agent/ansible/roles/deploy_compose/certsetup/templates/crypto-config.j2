@@ -22,7 +22,7 @@ PeerOrgs:
     CA:
 {% for ca in cas %}
 {% if ca.org == org %}
-      Hostname: {{ ca.name }}
+      Hostname: {{ ca.hostname }}
 {% endif %}
 {% endfor %}
     Specs:

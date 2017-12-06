@@ -40,8 +40,7 @@ curl -s -X POST \
 echo
 echo
 sleep 5
-
-date
+echo
 echo
 echo "POST request Join channel on org1"
 curl -s -X POST \
@@ -49,7 +48,7 @@ curl -s -X POST \
   -H "authorization: Bearer $ORG1_TOKEN" \
   -H "content-type: application/json" \
   -d '{
-	"peers": ["peer1-org1","peer1-org1","peer1-org1"]
+	"peers": ["peer1-org1","peer2-org1","peer3-org1"]
 }'
 echo
 echo
@@ -61,7 +60,7 @@ curl -s -X POST \
   -H "authorization: Bearer $ORG2_TOKEN" \
   -H "content-type: application/json" \
   -d '{
-	"peers": ["peer1-org2","peer1-org2","peer1-org3"]
+	"peers": ["peer1-org2","peer2-org2","peer3-org3"]
 }'
 echo
 echo

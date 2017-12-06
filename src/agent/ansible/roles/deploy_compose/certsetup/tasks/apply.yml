@@ -17,7 +17,7 @@
   set_fact:
     cas: |
       {{ cas | default([]) + [{ 'org':item.split('.')[-1],
-        'name':item | replace('.', '-'),
+        'name':item,
         'hostname':item.split('.')[0]}] }}
   with_items: "{{ cals }}"
   when: cals | length > 0
