@@ -30,7 +30,8 @@
   set_fact:
     peers: |
       {{ peers | default([]) + [{'org':item.split('@')[1].split('.')[-1],
-        'name':item.split('@')[1] | replace('.','-'),
+        'name':item.split('@')[1],
+        'hostname': item.split('@')[1].split('.')[0],
         'role':item.split('@')[0]}] }}
   with_items: "{{ peerls }}"
 
@@ -51,7 +52,8 @@
   set_fact:
     orderers: |
       {{ orderers | default([]) + [{'org':item.split('.')[-1],
-        'name':item | replace('.', '-') }] }}
+        'name':item,
+        'hostname':item.split('.')[0] }] }}
   with_items: "{{ ordererls }}"
 
 - name: Sort the orderer list
@@ -104,7 +106,7 @@
 - name: Create core.yml file for every peer
   template:
     src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/core.yaml"
-    dest: "{{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }}/core.yaml"
+    dest: "{{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}/core.yaml"
   with_items: "{{ peers }}"
 
 - name: Create config tx file
@@ -135,9 +137,9 @@
 - name: Duplicate genesis and transaction block to each peer
   shell: >-
     cp {{ fabricworkdir }}/keyfiles/genesis.block
-    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }} &&
+    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }} &&
     cp {{ fabricworkdir }}/keyfiles/businesschannel.tx
-    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }}
+    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}
   args:
     chdir: "{{ fabricworkdir }}"
   with_items: "{{ peers }}"

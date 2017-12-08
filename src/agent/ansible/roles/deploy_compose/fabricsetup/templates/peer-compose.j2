@@ -20,10 +20,13 @@ services:
     environment:
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_LOGGING_LEVEL=DEBUG
-      - CORE_PEER_ENDORSER_ENABLED=true
-      - CORE_PEER_GOSSIP_USELEADERELECTION={{ allpeers|selectattr('org','equalto',peer.org)|list|selectattr('role','equalto','leader')|list|length|int==0 }}
-      - CORE_PEER_GOSSIP_ORGLEADER={{ (peer.role == "leader") | ternary('true','false') }}
-      - CORE_PEER_PROFILE_ENABLED=true
+      - CORE_LOGGING_GRPC=debug
+      - CORE_LOGGING_PEER_GOSSIP=debug
+      #- CORE_PEER_ENDORSER_ENABLED=true
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #{{ allpeers|selectattr('org','equalto',peer.org)|list|selectattr('role','equalto','leader')|list|length|int==0 }}
+      - CORE_PEER_GOSSIP_ORGLEADER=false #{{ (peer.role == "leader") | ternary('true','false') }}
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.{{ peer.org }}:7051 #TODO
+      #- CORE_PEER_PROFILE_ENABLED=true
       - CORE_PEER_TLS_ENABLED={{ fabric.tls | lower }}
 {% if fabric.tls %}
       - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
@@ -41,7 +44,7 @@ services:
 {% endif %}
     volumes:
       - /var/run/:/host/var/run/
-      - {{ fabricworkdir }}/run/keyfiles/{{ peer.org }}/peers/{{ peer.name }}.{{ peer.org }}:/etc/hyperledger/fabric
+      - {{ fabricworkdir }}/run/keyfiles/{{ peer.org }}/peers/{{ peer.name }}:/etc/hyperledger/fabric
       - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/allorgs
     command: peer node start
 

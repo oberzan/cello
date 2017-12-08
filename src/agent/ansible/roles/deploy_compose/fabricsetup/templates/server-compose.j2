@@ -14,11 +14,11 @@ services:
       - HFC_LOGGING={"debug":"console"}
     working_dir: /app
 # tcpdump -i eth0 -w /out.log -s 0 -vvv &
+# npm install TODO
     command: bash -c 'apt-get update;
                       apt-get install -y jq;
                       chmod +100 testAPI.sh; 
                       sleep 2;
-                      npm install;
                       node app & ./testAPI.sh -l node;
                       sleep 9999999'
     ports:

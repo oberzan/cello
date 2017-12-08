@@ -35,62 +35,12 @@ channels:
 
     # Required.
     peers:
-      # peer0.org1.example.com:
-      #   # [Optional]. will this peer be sent transaction proposals for endorsement? The peer must
-      #   # have the chaincode installed. The app can also use this property to decide which peers
-      #   # to send the chaincode install request. Default: true
-      #   endorsingPeer: true
-
-      #   # [Optional]. will this peer be sent query proposals? The peer must have the chaincode
-      #   # installed. The app can also use this property to decide which peers to send the
-      #   # chaincode install request. Default: true
-      #   chaincodeQuery: true
-
-      #   # [Optional]. will this peer be sent query proposals that do not require chaincodes, like
-      #   # queryBlock(), queryTransaction(), etc. Default: true
-      #   ledgerQuery: true
-
-      #   # [Optional]. will this peer be the target of the SDK's listener registration? All peers can
-      #   # produce events but the app typically only needs to connect to one to listen to events.
-      #   # Default: true
-      #   eventSource: true
-
-      # peer1.org1.example.com:
-      #   endorsingPeer: false
-      #   chaincodeQuery: true
-      #   ledgerQuery: true
-      #   eventSource: true
-
-      # peer2.org1.example.com:
-      #   endorsingPeer: true
-      #   chaincodeQuery: true
-      #   ledgerQuery: true
-      #   eventSource: false
-
-      # peer0.org2.example.com:
-      #   endorsingPeer: true
-      #   chaincodeQuery: true
-      #   ledgerQuery: true
-      #   eventSource: true
-
-      # peer1.org2.example.com:
-      #   endorsingPeer: false
-      #   chaincodeQuery: true
-      #   ledgerQuery: true
-      #   eventSource: false
-      
-      # peer2.org2.example.com:
-      #   endorsingPeer: true
-      #   chaincodeQuery: true
-      #   ledgerQuery: true
-      #   eventSource: false
-
 {% for peer in allpeers %}
       {{ peer.name }}:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: true
+        eventSource: {{ "peer1" in peer.name | ternary('true','false') }} #TODO
 {% endfor %}
 
     # [Optional]. what chaincodes are expected to exist on this channel? The application can use

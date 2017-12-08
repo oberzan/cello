@@ -83,7 +83,7 @@
   set_fact:
     allpeers: |
       {{ allpeers | default([]) + [{'org':item.split('@')[1].split('.')[-1],
-        'name':item.split('@')[1] | replace('.', '-'),
+        'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ peerls }}"
 
@@ -98,14 +98,14 @@
   set_fact:
     allorderers: |
       {{ allorderers | default([]) + [{ 'org':item.split('.')[-1],
-        'name':item | replace('.', '-') }] }}
+        'name':item }] }}
   with_items: "{{ ordererls }}"
 
 - name: Get peer container list
   set_fact:
     peers: |
       {{ peers + [{'org':item.split('@')[1].split('.')[-1],
-        'name':item.split('@')[1] | replace('.', '-'),
+        'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ fabric.network[current_host].peers | default([]) }}"
 
@@ -120,7 +120,7 @@
   set_fact:
     orderers: |
       {{ orderers + [{'org':item.split('.')[-1],
-        'name':item | replace('.', '-') }] }}
+        'name':item }] }}
   with_items: "{{ fabric.network[current_host].orderers | default([]) }}"
 
 - name: Set zookeeper and kafka container list
@@ -205,9 +205,6 @@
   with_items: "{{ privatekeys.results }}"
   no_log: True
 
-- debug:
-    msg: "{{ adminprocesskeys.results }}"
-
 - name: Setup admin private key values
   set_fact:
     adminkeys: |
@@ -215,9 +212,6 @@
   with_items: "{{ adminprocesskeys.results }}"
   when: servers | length > 0
   no_log: True
-
-- debug:
-    msg: "{{ adminkeys }}"
 
 - name: Get the peer org list
   set_fact:
@@ -262,48 +256,19 @@
     - { name: "kafka-compose", flag: "{{ kafkas }}" }
     - { name: "orderer-compose", flag: "{{ orderers }}" }
     - { name: "peer-compose", flag: "{{ peers }}" }
-#    - { name: "server-compose", flag: "{{servers}}" }
   tags: "fabricup"
+#####################################################################
 
-- name: Locate a host to run peer channel create command
-  set_fact:
-    clihost: "{{ item }}"
-    clipeer: "{{ allpeers | random }}"
-    cliorderer: "{{ allorderers | random }}"
-  when: peers | length > 0 and clihost == ""
-  with_items: "{{ groups['allnodes'] }}"
-
-# - debug: 
-#     msg: "{{ privatekeys }}"
-
-# - debug: 
-#     msg: "{{ cakeys }}"
-
-- debug: 
-    msg: "{{ peerorgs }}"
-
-- debug: 
-    msg: "{{ cals }}"
-
-- debug:
-    msg: "{{ allcas }}"
-
-- debug:
-    msg: "{{ item }}"
-  when: item.org in peerorgs
-  with_items: "{{ allcas }}"
-
-#- name: Get all cakeys object list
-#  set_fact:
-#    allcakeys: |
-#      {{ allcakeys | default([]) + [{ 'org':item.split('.')[-1],
-#        'name':item | replace('.', '-') }] }}
-#  with_items: "{{ ordererls }}"
-
-
+# - name: Locate a host to run peer channel create command
+#   set_fact:
+#     clihost: "{{ item }}"
+#     clipeer: "{{ allpeers | random }}"
+#     cliorderer: "{{ allorderers | random }}"
+#   when: peers | length > 0 and clihost == ""
+#   with_items: "{{ groups['allnodes'] }}"
 
 - name: Copy app directory to server hosts
-  copy:
+  synchronize:
     src: "{{ playbook_dir }}/fabricsetup/files/app"
     dest: "{{ fabricworkdir }}/run"
   when: servers | length > 0
@@ -337,6 +302,8 @@
   when: servers | length > 0
   tags: "fabricup"
 
+
+#################################################
 
 # - name: Make sure that working directory exists and clean
 #   file:

@@ -7,7 +7,7 @@ OrdererOrgs:
     Specs:
 {%   for item in orderers %}
 {%     if item.org == org %}
-      - Hostname: {{ item.name }}
+      - Hostname: {{ item.hostname }}
 {%     endif %}
 {%   endfor %}
 {% endfor %}
@@ -28,7 +28,7 @@ PeerOrgs:
     Specs:
 {%   for item in peers %}
 {%     if item.org == org %}
-      - Hostname: {{ item.name }}
+      - Hostname: {{ item.hostname }}
 {%     endif %}
 {%   endfor %}
 {% endfor %}

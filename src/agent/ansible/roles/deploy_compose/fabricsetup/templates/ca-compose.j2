@@ -13,7 +13,7 @@ services:
       - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server-config/ca
       - FABRIC_CA_SERVER_CA_NAME={{ ca.name }}
       - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/ca/{{ cakeys[ca.org+'_ca'] }}
-      - FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca/ca.{{ ca.org }}-cert.pem
+      - FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca/{{ ca.name }}-cert.pem
 {% if fabric.tls %}
       - FABRIC_CA_SERVER_TLS_ENABLED=true
       - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/{{ cakeys[ca.org+'_tlsca'] }}
@@ -22,4 +22,5 @@ services:
     volumes:
       - {{ fabricworkdir }}/run/keyfiles/{{ ca.org }}:/etc/hyperledger/fabric-ca-server-config
     command: fabric-ca-server start -b {{ fabric.ca.admin }}:{{ fabric.ca.adminpw }} -d
+
 {% endfor %}
