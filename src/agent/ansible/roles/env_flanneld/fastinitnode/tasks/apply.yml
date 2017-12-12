@@ -19,13 +19,39 @@
     - "{{ goroot }}"
     - "{{ gopath }}"
 
+- name: Install apt-transport-https if necessary.
+  apt:
+    name: apt-transport-https
+    state: present
+  when: ansible_os_family == 'Debian'
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+
+- name: Add Docker apt key.
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+    state: present
+  when: ansible_os_family == 'Debian'
+  register: add_repository_key
+  ignore_errors: true
+
+- name: Add Docker repository.
+  apt_repository:
+    repo: "deb https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+
 - name: Install packages
   apt:
     name: "{{ item }}"
   with_items:
-    - ['docker.io', 'python-dev', 'python-pip', 'libtool', 'libltdl-dev']
+    - ['docker-ce', 'python-dev', 'python-pip', 'libtool', 'libltdl-dev']
     - ['git', 'net-tools', 'netcat-openbsd', 'autoconf', 'automake']
-    - ['libtool', 'curl', 'make', 'g++', 'unzip', 'build-essential']
+    - ['libtool', 'make', 'g++', 'unzip', 'build-essential']
 
 - name: Install pip and upgrade
   pip:
