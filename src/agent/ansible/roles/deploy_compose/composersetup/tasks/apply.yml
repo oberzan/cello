@@ -1,0 +1,125 @@
+---
+- name: Setup variables
+  set_fact:
+    fabricworkdir: "/opt/gopath/{{ env }}/fabric"
+
+# - include: setup-RedHat.yml
+#   when: ansible_os_family == 'RedHat'
+
+- include_tasks: setup-Debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Create /run/composer directory
+  file:
+    path: "{{ fabricworkdir }}/run/composer"
+    state: "directory"
+
+# - name: Add repository
+#   become: true
+#   become_user: root
+#   apt_repository:
+#     repo: "{{ item }}"
+#     state: present
+#   with_items:
+#     - ppa:git-core/ppa
+    
+
+# - name: Install the gpg key for nodejs LTS
+#   become: yes
+#   apt_key:
+#     url: "https://deb.nodesource.com/gpgkey/nodesource.gpg.key"
+#     state: present
+
+# - name: Add nodejs repository
+#   become: yes
+#   apt_repository:
+#     repo: deb https://deb.nodesource.com/setup_8.x nodejs
+#     update_cache: yes
+#     state: present
+
+#If Ubuntu
+- name: Update repository cache and install libssl-dev
+  become: true
+  apt:
+    name: libssl-dev
+    update_cache: yes
+
+# - name: Download nvm install.sh
+#   get_url:
+#     url: https://raw.githubusercontent.com/creationix/nvm/v0.33.7/install.sh
+#     dest: "{{ fabricworkdir }}/run/composer/install.sh"
+#     mode: 0744
+
+# - name: Download prereqs-ubuntu.sh
+#   get_url:
+#     url: https://hyperledger.github.io/composer/prereqs-ubuntu.sh
+#     dest: "{{ fabricworkdir }}/run/composer/prereqs-ubuntu.sh"
+#     mode: 0744
+
+# - name: Install prereqs and remove prereqs-ubuntu.sh
+#   shell: |
+#     {{ fabricworkdir }}/run/composer/prereqs-ubuntu.sh
+#     rm {{ fabricworkdir }}/run/composer/prereqs-ubuntu.sh
+
+
+
+# - name: Install nvm and remove install.sh
+#   shell: |
+#     {{ fabricworkdir }}/run/composer/install.sh
+#     rm {{ fabricworkdir }}/run/composer/install.sh
+#     export NVM_DIR="${HOME}/.nvm"
+#     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+#     [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+#     nvm install --lts
+#     nvm use --lts
+#     nvm alias default 'lts/*'
+   
+#     echo $NVM_BIN
+#   register: tmp
+# # npm install npm@latest -g
+# - set_fact:
+#     npm_path: "{{ tmp.stdout_lines | last }}/npm"
+    
+
+- name: Install latest npm package globally.
+  npm:
+    name: npm
+    version: latest
+    global: yes
+
+- name: Install composer npm packages globally.
+  npm:
+    name: "{{ item }}"
+    version: "{{ fabric.composer_tag }}"
+    global: yes
+  with_items:
+    - composer-cli
+    - generator-hyperledger-composer
+
+- name: Install composer npm packages globally.
+  npm:
+    name: "composer-rest-server"
+    version: "{{ fabric.composer_tag }}"
+    global: yes
+
+- name: Install "yo" node.js package globally.
+  npm:
+    name: yo
+    version: '2.0.0'
+    global: yes
+
+- name: Template composer Org only connection profiles
+  vars:
+    ORG_ONLY: true
+  template:
+    src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
+    dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}-only.json"
+  with_items: "{{ peerorgs }}"
+
+- name: Template composer Org connection profiles
+  vars:
+    ORG_ONLY: false
+  template:
+    src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
+    dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}.json"
+  with_items: "{{ peerorgs }}"

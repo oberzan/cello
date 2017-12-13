@@ -52,5 +52,9 @@ fabric: {
   },
 
   baseimage_tag: "1.1.0-preview",
-  ca: { tag: "1.1.0-preview", admin: "admin", adminpw: "adminpw" }
+  ca: { tag: "1.1.0-preview", admin: "admin", adminpw: "adminpw" },
+
+  # Composer settings
+  composer_tag: "0.16.1",
+  nodejs_version: "8.x"
 }

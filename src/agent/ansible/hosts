@@ -15,3 +15,6 @@ cloud ansible_host=127.0.0.1 ansible_python_interpreter=python
 
 [builders]
 172.16.67.237
+
+[composer]
+172.16.67.237

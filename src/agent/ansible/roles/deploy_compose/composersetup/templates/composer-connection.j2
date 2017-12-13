@@ -1,0 +1,31 @@
+{
+    "name": "fabric-network-{{ item }}{% if ORG_ONLY %}-only{% endif %}",
+    "type": "hlfv1",
+    "orderers": [
+{% for orderer in allorderers %}
+       { "url": "grpc://{{ orderer.name }}:7050" },
+{% endfor %}
+    ],
+{% for ca in allcas %}
+{% if ca.org == item %}
+    "ca": { "url": "http://{{ ca.name }}:7054",
+            "name": "{{ ca.name }}"},
+{% endif %}
+{% endfor %}
+    "peers": [
+{% for peer in allpeers %}
+{% if not ORG_ONLY or peer.org == item %}
+        {
+            "requestURL": "grpc://{{ peer.name }}:7051",
+{% if peer.org == item %}
+            "eventURL": "grpc://{{ peer.name }}:7053"
+{% endif %}
+            "cert": "{{ fabricworkdir }}/run/keyfiles/{{item}}/ca/{{ allcas | selectattr('org', 'equalto', item) | map(attribute='name') | first }}-cert.pem"
+        },
+{% endif %}
+{% endfor %}
+    ],
+    "channel": "businesschannel",
+    "mspID": "{{ item }}",
+    "timeout": 300
+}

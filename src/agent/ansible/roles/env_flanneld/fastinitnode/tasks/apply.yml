@@ -45,12 +45,17 @@
     update_cache: yes
   when: ansible_os_family == 'Debian'
 
+- name: Install apt-transport-https if necessary.
+  apt:
+    name: git
+    state: latest
+
 - name: Install packages
   apt:
     name: "{{ item }}"
   with_items:
     - ['docker-ce', 'python-dev', 'python-pip', 'libtool', 'libltdl-dev']
-    - ['git', 'net-tools', 'netcat-openbsd', 'autoconf', 'automake']
+    - ['net-tools', 'netcat-openbsd', 'autoconf', 'automake']
     - ['libtool', 'make', 'g++', 'unzip', 'build-essential']
 
 - name: Install pip and upgrade
