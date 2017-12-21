@@ -19,44 +19,11 @@
     - "{{ goroot }}"
     - "{{ gopath }}"
 
-- name: Install apt-transport-https if necessary.
-  apt:
-    name: apt-transport-https
-    state: present
+- include_tasks: setup-RedHat.yml
+  when: ansible_os_family == 'RedHat'
+
+- include_tasks: setup-Debian.yml
   when: ansible_os_family == 'Debian'
-  with_items:
-    - apt-transport-https
-    - ca-certificates
-    - curl
-
-- name: Add Docker apt key.
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
-    state: present
-  when: ansible_os_family == 'Debian'
-  register: add_repository_key
-  ignore_errors: true
-
-- name: Add Docker repository.
-  apt_repository:
-    repo: "deb https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable"
-    state: present
-    update_cache: yes
-  when: ansible_os_family == 'Debian'
-
-- name: Install apt-transport-https if necessary.
-  apt:
-    name: git
-    state: latest
-
-- name: Install packages
-  apt:
-    name: "{{ item }}"
-  with_items:
-    - ['docker-ce', 'python-dev', 'python-pip', 'libtool', 'libltdl-dev']
-    - ['net-tools', 'netcat-openbsd', 'autoconf', 'automake']
-    - ['libtool', 'make', 'g++', 'unzip', 'build-essential']
 
 - name: Install pip and upgrade
   pip:
@@ -81,12 +48,6 @@
     src: "https://storage.googleapis.com/golang/go{{ cluster.go_ver }}.linux-{{ arch }}.tar.gz"
     dest: "/opt"
     remote_src: True
-
-- name: Fix up the search domain
-  lineinfile:
-    path: /etc/resolvconf/resolv.conf.d/base
-    state: present
-    line: search {{ cluster.domain | default('fabric') }}
 
 - name: Setup golang profile
   template:

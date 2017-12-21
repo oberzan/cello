@@ -1,7 +1,8 @@
 [Unit]
 Description=Docker Application Container Engine
 Documentation=http://docs.docker.com
-After=docker.socket network.target
+After= network.target
+#docker.socket
 Requires=docker.socket
 
 [Service]
@@ -10,10 +11,12 @@ Environment="DOCKER_OPT_BIP=--bip={{ bip.stdout }}"
 Environment="DOCKER_OPT_MTU=--mtu={{ mtu.stdout }}"
 Environment="DOCKER_OPT_DNS=--dns={{ node_ip }}"
 Environment="DOCKER_OPT_DNS_SEARCH=--dns-search={{ domain }}"
+#Environment="DOCKER_OPT_STORAGE_DRIVER=--storage-driver=devicemapper"
 
-ExecStart=/usr/bin/dockerd -H fd:// \
-  $DOCKER_OPTS $DOCKER_OPT_BIP $DOCKER_OPT_MTU \
-  $DOCKER_OPT_DNS $DOCKER_OPT_DNS_SEARCH
+ExecStart=/usr/bin/dockerd -D \
+  $DOCKER_OPTS $DOCKER_OPT_BIP $DOCKER_OPT_MTU -H unix:///var/run/docker.sock \
+  $DOCKER_OPT_DNS $DOCKER_OPT_DNS_SEARCH \
+  $DOCKER_OPT_STORAGE_DRIVER
 
 ExecReload=/bin/kill -s HUP $MAINPID
 

@@ -77,7 +77,7 @@ organizations:
 orderers:
 {% for orderer in allorderers %}
   {{ orderer.name }}:
-    url: grpc://{{ orderer.name }}:7050
+    url: grpc{% if fabric.tls %}s{% endif %}://{{ orderer.name }}:7050
   
     # these are standard properties defined by the gRPC library
     # they will be passed in as-is to gRPC client constructor
@@ -85,20 +85,20 @@ orderers:
     #   ssl-target-name-override: {{ orderer.name }} #tlsca.example.com #
     #    grpc-max-send-message-length: 15
 
-    # tlsCACerts:
-    #   path: /etc/hyperledger/allorgs/{{ orderer.org }}/orderers/{{ orderer.name }}.{{ orderer.org }}/tls/ca.crt
+    tlsCACerts:
+      path: /etc/hyperledger/allorgs/{{ orderer.org }}/orderers/{{ orderer.name }}/tls/ca.crt
 {% endfor %}
 
 
 peers:
 {% for peer in allpeers %}
   {{ peer.name }}:
-    url: grpc://{{ peer.name }}:7051
-    eventUrl: grpc://{{ peer.name }}:7053
+    url: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7051
+    eventUrl: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7053
     # grpcOptions:
     #   ssl-target-name-override: peer0.org1.example.com
-    # tlsCACerts:
-    #   path: /etc/hyperledger/allorgs/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+    tlsCACerts:
+      path: /etc/hyperledger/allorgs/{{ peer.org }}/peers/{{ peer.name }}/tls/ca.crt
 
 {% endfor %}
 
@@ -112,14 +112,14 @@ peers:
 certificateAuthorities:
 {% for ca in allcas if ca.org in peerorgs %}
   {{ ca.name }}:
-    url: http://{{ ca.name }}:7054
+    url: http{% if fabric.tls %}s{% endif %}://{{ ca.name }}:7054
 
     # the properties specified under this object are passed to the 'http' client verbatim when
     # making the request to the Fabric-CA server
     httpOptions:
       verify: false
-    # tlsCACerts:
-    #   path: /etc/hyperledger/allorgs/{{ ca.org }}/ca/{{ ca.name }}-cert.pem
+    tlsCACerts:
+      path: /etc/hyperledger/allorgs/{{ ca.org }}/ca/{{ ca.name }}-cert.pem
 
     # Fabric-CA supports dynamic user enrollment via REST APIs. A "root" user, a.k.a registrar, is
     # needed to enroll and invoke new users.

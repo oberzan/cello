@@ -1,5 +1,6 @@
 [Unit]
 Description=Fabric ETCD V3 Service
+After= network.target
 
 [Service]
 Environment="ETCD_NAME={{ node_name }}"

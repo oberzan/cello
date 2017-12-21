@@ -2,12 +2,88 @@
 - name: Setup variables
   set_fact:
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
+    peerls: "{{ [] }}"
+    cals: "{{ [] }}"
+    ordererls: "{{ [] }}"
+    peers: "{{ [] }}"
+    peerorgs: "{{ [] }}"
+
+
+- name: Get peer container list
+  set_fact:
+    peers: |
+      {{ peers + [{'org':item.split('@')[1].split('.')[-1],
+        'name':item.split('@')[1],
+        'role':item.split('@')[0]}] }}
+  with_items: "{{ fabric.network[hostvars[inventory_hostname].inter_name].peers | default([]) }}"
+
+- name:
+  set_fact:
+    peerls: "{{ peerls | default([]) + item.value.peers | default([]) }}"
+    cals: "{{ cals | default([]) + item.value.cas | default([]) }}"
+    ordererls: "{{ ordererls | default([]) + item.value.orderers | default([]) }}"
+  with_dict: "{{ fabric.network }}"
+
+- name: Get all peer object list
+  set_fact:
+    allpeers: |
+      {{ allpeers | default([]) + [{'org':item.split('@')[1].split('.')[-1],
+        'name':item.split('@')[1],
+        'role':item.split('@')[0]}] }}
+  with_items: "{{ peerls }}"
+
+- name: Get all ca object list
+  set_fact:
+    allcas: |
+      {{ allcas | default([]) + [{ 'org':item.split('.')[-1],
+        'name':item }] }}
+  with_items: "{{ cals }}"
+
+- set_fact:
+    allorderers: |
+      {{ allorderers | default([]) + [{ 'org':item.split('.')[-1],
+        'name':item }] }}
+  with_items: "{{ ordererls }}"
+
+- name: Get the peer org list
+  set_fact:
+    peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
+
 
 # - include: setup-RedHat.yml
 #   when: ansible_os_family == 'RedHat'
 
+# - name: Download nvm install.sh
+#   get_url:
+#     url: https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh
+#     dest: "{{ fabricworkdir }}/run/composer/install.sh"
+#     mode: 0744
+
 - include_tasks: setup-Debian.yml
   when: ansible_os_family == 'Debian'
+
+- include_tasks: setup-RedHat.yml
+  when: ansible_os_family == 'RedHat'
+
+- name: Set node source
+  shell: |
+    curl https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh | bash
+  args:
+    warn: no
+
+- pause:
+    seconds: 20
+
+- name: Set node source
+  environment:
+    NVM_DIR: /home/{{ fabric.ssh_user }}/.nvm
+  shell: |
+    . "$NVM_DIR/nvm.sh"
+    . "$NVM_DIR/bash_completion"
+    nvm install 8
+    nvm use 8
+  args:
+    executable: /bin/bash
 
 - name: Create /run/composer directory
   file:
@@ -37,18 +113,8 @@
 #     update_cache: yes
 #     state: present
 
-#If Ubuntu
-- name: Update repository cache and install libssl-dev
-  become: true
-  apt:
-    name: libssl-dev
-    update_cache: yes
 
-# - name: Download nvm install.sh
-#   get_url:
-#     url: https://raw.githubusercontent.com/creationix/nvm/v0.33.7/install.sh
-#     dest: "{{ fabricworkdir }}/run/composer/install.sh"
-#     mode: 0744
+
 
 # - name: Download prereqs-ubuntu.sh
 #   get_url:
@@ -81,28 +147,77 @@
 #     npm_path: "{{ tmp.stdout_lines | last }}/npm"
     
 
-- name: Install latest npm package globally.
-  npm:
-    name: npm
-    version: latest
-    global: yes
+# - name: Install latest npm package globally.
+#   npm:
+#     name: npm
+#     version: latest
+#     global: yes
+
+# - command: npm install -g composer-cli@0.16.1
+# - command: npm install -g generator-hyperledger-composer@0.16.1
+# - command: npm install -g composer-rest-server@0.16.1
+# - command: npm install -g composer-cli@0.16.1
+
+# - command: ls $NVM_DIR
+#   environment:
+#     NVM_DIR: ~/.nvm/versions/node/v8.9.3/bin
+#     PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+
+# - pause:
+#     seconds: 20
+
+# - shell: |
+#     source ~/.bash_profile
+#     ln -s /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+#   become: true
+
+# - name: Install composer npm packages globally.
+  # environment:
+  #   NVM_DIR: ~/.nvm
+  #   PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+  # npm:
+  #   name: "{{ item }}"
+  #   version: "{{ fabric.composer_tag }}"
+  #   global: yes
+  #   # executable: ~/.nvm/versions/node/v8.9.3/bin/npm
+  # with_items:
+  #   - composer-cli
+  #   - generator-hyperledger-composer
+  #   - composer-rest-server
 
 - name: Install composer npm packages globally.
-  npm:
-    name: "{{ item }}"
-    version: "{{ fabric.composer_tag }}"
-    global: yes
+  environment:
+    NVM_DIR: /home/{{ fabric.ssh_user }}/.nvm
+    PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+  shell: |
+    npm install -g {{item}}@{{ fabric.composer_tag }}
   with_items:
     - composer-cli
     - generator-hyperledger-composer
+    - composer-rest-server
 
-- name: Install composer npm packages globally.
-  npm:
-    name: "composer-rest-server"
-    version: "{{ fabric.composer_tag }}"
-    global: yes
+#source /home/{{ fabric.ssh_user }}/.profile
+
+# - name: Install composer npm packages globally.
+#   environment:
+#     NVM_DIR: ~/.nvm
+#     PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+#   npm:
+#     name: "{{ item }}"
+#     version: "{{ fabric.composer_tag }}"
+#     global: yes
+#   with_items:
+#     - generator-hyperledger-composer
+
+# - name: Install composer npm packages globally.
+#   npm:
+#     name: composer-rest-server
+#     version: '0.16.1'
+#     global: yes
 
 - name: Install "yo" node.js package globally.
+  environment:
+    PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
   npm:
     name: yo
     version: '2.0.0'

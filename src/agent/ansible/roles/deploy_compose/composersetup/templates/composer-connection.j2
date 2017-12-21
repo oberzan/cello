@@ -3,12 +3,12 @@
     "type": "hlfv1",
     "orderers": [
 {% for orderer in allorderers %}
-       { "url": "grpc://{{ orderer.name }}:7050" },
+       { "url": "grpc{% if fabric.tls %}s{% endif %}://{{ orderer.name }}:7050" },
 {% endfor %}
     ],
 {% for ca in allcas %}
 {% if ca.org == item %}
-    "ca": { "url": "http://{{ ca.name }}:7054",
+    "ca": { "url": "http{% if fabric.tls %}s{% endif %}://{{ ca.name }}:7054",
             "name": "{{ ca.name }}"},
 {% endif %}
 {% endfor %}
@@ -16,9 +16,9 @@
 {% for peer in allpeers %}
 {% if not ORG_ONLY or peer.org == item %}
         {
-            "requestURL": "grpc://{{ peer.name }}:7051",
+            "requestURL": "grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7051",
 {% if peer.org == item %}
-            "eventURL": "grpc://{{ peer.name }}:7053"
+            "eventURL": "grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7053"
 {% endif %}
             "cert": "{{ fabricworkdir }}/run/keyfiles/{{item}}/ca/{{ allcas | selectattr('org', 'equalto', item) | map(attribute='name') | first }}-cert.pem"
         },

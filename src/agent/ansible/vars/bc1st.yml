@@ -16,7 +16,7 @@ fabric: {
 
   # options are "goleveldb", "CouchDB", default is goleveldb
   peer_db: "CouchDB",
-  tls: false,
+  tls: true,
 
   # The following section defines how the fabric network is going to be made up
   # cas indicates certificate authority containers
@@ -56,5 +56,5 @@ fabric: {
 
   # Composer settings
   composer_tag: "0.16.1",
-  nodejs_version: "8.x"
+  nodejs_version: "8.9.3"
 }

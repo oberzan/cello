@@ -17,7 +17,7 @@ services:
 {% if fabric.tls %}
       - FABRIC_CA_SERVER_TLS_ENABLED=true
       - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/{{ cakeys[ca.org+'_tlsca'] }}
-      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/tlsca.{{ ca.org }}-cert.pem
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/tls{{ ca.name }}-cert.pem
 {% endif %}
     volumes:
       - {{ fabricworkdir }}/run/keyfiles/{{ ca.org }}:/etc/hyperledger/fabric-ca-server-config

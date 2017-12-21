@@ -1,7 +1,36 @@
 ---
-# - name: Ensure apt-transport-https is installed.
-#   apt: 
-#     name: apt-transport-https
+
+
+  # args:
+  #   warn: no
+
+# - name: Set node source
+#   shell: |
+#     nvm install 8
+#   args:
+#     warn: no
+
+# - name: Set node source
+#   shell: nvm use 8
+#   args:
+#     executable: /bin/bash
+
+
+# - name: Unarchive nodejs
+#   unarchive:
+#     src: http://nodejs.org/dist/v{{ fabric.nodejs_version }}/node-v{{ fabric.nodejs_version }}-linux-x64.tar.gz #TODO
+#     dest: /usr/local
+#     remote_src: yes
+
+# - name: Set node source
+#   become: true
+#   shell: curl --silent --location https://rpm.nodesource.com/setup_8.x | sudo bash -
+#   args:
+#     warn: no
+
+# - name: Install nodejs
+#   yum:
+#     name: nodejs
 #     state: present
 
 # - name: Add Nodesource apt key.
@@ -28,6 +57,6 @@
 
 # - name: Update repository cache and install libssl-dev
 #   become: true
-#   apt:
+#   yum:
 #     name: libssl-dev
 #     update_cache: yes

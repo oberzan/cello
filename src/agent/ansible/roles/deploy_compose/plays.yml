@@ -33,7 +33,6 @@
   hosts: composer
   gather_facts: true
   user: "{{ fabric.ssh_user }}"
-  become: true
   vars_files:
     - "./../../vars/{{ env }}.yml"
   tasks:

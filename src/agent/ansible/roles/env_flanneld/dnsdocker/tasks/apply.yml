@@ -25,6 +25,16 @@
     src: "{{ playbook_dir }}/../env_flanneld/dnsdocker/templates/docker.j2"
     dest: "/lib/systemd/system/docker.service"
 
+- name: Copy docker.socket
+  copy:
+    src: "{{ playbook_dir }}/../env_flanneld/dnsdocker/files/docker.socket"
+    dest: "/lib/systemd/system/docker.socket"
+  when: ansible_os_family == 'RedHat'
+
+- service:
+    name: docker
+    state: stopped
+
 - name: Reload daemon service
   command: systemctl daemon-reload
 
@@ -35,4 +45,24 @@
     state: restarted
   with_items:
     - docker.socket
+
+- name: Restart the docker services
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: restarted
+  with_items:
+   # - docker.socket
     - docker
+  #when: ansible_os_family == 'Debian'
+
+# - name: Restart the docker services
+#   service:
+#     name: "{{ item }}"
+#     enabled: yes
+#     state: restarted
+#   with_items:
+#     - docker
+#   when: ansible_os_family == 'RedHat'
+
+# - command: bash -c "iptables-save | grep \"FORWARD [^-]\""

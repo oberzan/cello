@@ -1,0 +1,121 @@
+- name: Add Docker GPG key.
+  rpm_key:
+    key: https://download.docker.com/linux/centos/gpg
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Install libselinux-python
+  yum:
+    name: libselinux-python
+    state: present
+
+- name: Install 
+  yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - epel-release
+    - yum-utils
+    - curl-devel
+    - expat-devel
+    - gettext-devel
+    - openssl-devel
+    - zlib-devel
+    - gcc
+    - perl-ExtUtils-MakeMaker
+
+### Build git
+# - name: Install latest git
+#   yum:
+#     name: git
+#     state: latest
+
+- name: Remove git
+  yum:
+    name: git
+    state: absent
+
+- file:
+    path: /tmp/build
+    state: directory
+    mode: 0755
+
+- name: Unarchive git
+  unarchive:
+    src: https://github.com/git/git/archive/v2.14.3.tar.gz
+    dest: /tmp/build
+    remote_src: yes
+
+- name: Install git
+  command: bash -c 'make prefix=/usr/local/git all'
+  args:
+    chdir: /tmp/build/git-2.14.3
+
+- command: bash -c 'make prefix=/usr/local/git install'
+  args:
+    chdir: /tmp/build/git-2.14.3
+
+- command: bash -c 'echo "pathmunge /usr/local/git/bin/" > /etc/profile.d/git.sh'
+  args:
+    chdir: /tmp/build/git-2.14.3
+
+- command: bash -c 'chmod +x /etc/profile.d/git.sh'
+  args:
+    chdir: /tmp/build/git-2.14.3
+
+- command: bash -c 'source /etc/bashrc'
+  args:
+    chdir: /tmp/build/git-2.14.3
+
+
+
+- name: Add Docker repository.
+  get_url:
+    url: "https://download.docker.com/linux/centos/docker-ce.repo"
+    dest: '/etc/yum.repos.d/docker-ce.repo'
+    owner: root
+    group: root
+    mode: 0644
+
+# - name: Configure Docker Edge repo.
+#   ini_file:
+#     dest: '/etc/yum.repos.d/docker-ce.repo'
+#     section: 'docker-ce-edge'
+#     option: enabled
+#     value: '0'
+
+# - name: Configure Docker Test repo.
+#   ini_file:
+#     dest: '/etc/yum.repos.d/docker-ce.repo'
+#     section: 'docker-ce-test'
+#     option: enabled
+#     value: '0'
+
+- name: Install packages
+  yum:
+    name: "{{ item }}"
+  with_items:
+    - ['device-mapper-persistent-data', 'lvm2', 'ca-certificates']
+    - ['docker-ce', 'libtool', 'libtool-ltdl-devel', 'net-tools', 'autoconf', 'automake']
+    - ['make', 'gcc-c++', 'unzip']
+
+- name: Install python-pip
+  yum:
+    name: python-pip
+
+- name: Start docker
+  service:
+    name: docker
+    state: started
+
+# - name: Fix up the search domain
+#   lineinfile:
+#     path: /etc/sysconfig/network
+#     state: present
+#     line: SEARCH="{{ cluster.domain | default('fabric') }}"
+
+# - name: Restart network service
+#   service:
+#     name: network
+#     status: restarted
