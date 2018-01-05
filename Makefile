@@ -15,13 +15,12 @@ PREV_VERSION=0.7
 # Building image usage
 DOCKER_NS ?= hyperledger
 BASENAME ?= $(DOCKER_NS)/cello
-BASE_VERSION=0.8.0
 VERSION ?= 0.8.0
 IS_RELEASE=false
 
 DOCKER_BASE_x86_64=ubuntu:xenial
 DOCKER_BASE_ppc64le=ppc64le/ubuntu:xenial
-#DOCKER_BASE_s390x=s390x/debian:jessie
+DOCKER_BASE_s390x=s390x/debian:jessie
 DOCKER_BASE=$(DOCKER_BASE_$(ARCH))
 BASE_VERSION ?= $(ARCH)-$(VERSION)
 
@@ -42,13 +41,13 @@ endif
 # Frontend needed
 SLASH:=/
 REPLACE_SLASH:=\/
+
+-include .makerc/email
+-include .makerc/admin-dashboard
+-include .makerc/user-dashboard
+
 export ROOT_PATH = ${PWD}
 ROOT_PATH_REPLACE=$(subst $(SLASH),$(REPLACE_SLASH),$(ROOT_PATH))
-THEME?=basic
-STATIC_FOLDER?=themes\/${THEME}\/static
-TEMPLATE_FOLDER?=themes\/${THEME}\/templates
-NPM_REGISTRY?=registry.npmjs.org
-DEV?=True
 
 # macOS has diff `sed` usage from Linux
 SYSTEM=$(shell uname)
@@ -59,25 +58,20 @@ else
 endif
 
 ifneq (${THEME}, basic)
-	ifneq ($(wildcard ./src/${STATIC_FOLDER}/node_modules),)
-		INSTALL_NPM=
-	else
-		INSTALL_NPM=npm-install
-	endif
 	ifeq (${THEME}, react)
 		ifneq ($(wildcard ./src/${STATIC_FOLDER}/js/dist),)
 			BUILD_JS=
 		else
-			BUILD_JS=build-js
+			BUILD_JS=build-admin-js build-user-dashboard-js
 		endif
 	else
 		ifneq ($(wildcard ./src/${STATIC_FOLDER}/dist),)
 			BUILD_JS=
 		else
-			BUILD_JS=build-js
+			BUILD_JS=build-admin-js build-user-dashboard-js
 		endif
 	endif
-	START_OPTIONS = initial-env $(INSTALL_NPM) $(BUILD_JS)
+	START_OPTIONS = initial-env $(BUILD_JS)
 else
 	START_OPTIONS = initial-env
 endif
@@ -153,11 +147,20 @@ image-clean: clean ##@Clean all existing images to rebuild
 	docker images | grep "hyperledger/cello-" | awk '{print $3}' | xargs docker rmi -f
 
 initial-env: ##@Configuration Initial Configuration for dashboard
+	cp default.env .env
 	$(SED) 's/\(STATIC_FOLDER=\).*/\1${STATIC_FOLDER}/' .env
 	$(SED) 's/\(TEMPLATE_FOLDER=\).*/\1${TEMPLATE_FOLDER}/' .env
-	$(SED) 's/\(NPM_REGISTRY=\).*/\1${NPM_REGISTRY}/' .env
+	$(SED) 's/\(NPM_REGISTRY=\).*/\1${NPM_REGISTRY_REPLACE}/' .env
 	$(SED) 's/\(DEV=\).*/\1${DEV}/' .env
 	$(SED) 's/\(ROOT_PATH=\).*/\1${ROOT_PATH_REPLACE}/' .env
+	$(SED) 's/\(ENABLE_EMAIL_ACTIVE=\).*/\1${ENABLE_EMAIL_ACTIVE}/' .env
+	$(SED) 's/\(SMTP_SERVER=\).*/\1${SMTP_SERVER}/' .env
+	$(SED) 's/\(SMTP_PORT=\).*/\1${SMTP_PORT}/' .env
+	$(SED) 's/\(SMTP_AUTH_USERNAME=\).*/\1${SMTP_AUTH_USERNAME}/' .env
+	$(SED) 's/\(SMTP_AUTH_PASSWORD=\).*/\1${SMTP_AUTH_PASSWORD}/' .env
+	$(SED) 's/\(FROM_EMAIL=\).*/\1${FROM_EMAIL}/' .env
+	$(SED) 's/\(WEBROOT=\).*/\1${WEBROOT}/' .env
+	$(SED) 's/\(THEME=\).*/\1${THEME}/' .env
 
 start: docker ##@Service Start service
 	@$(MAKE) $(START_OPTIONS)
@@ -178,8 +181,11 @@ setup-master: docker ##@Environment Setup dependency for master node
 setup-worker: ##@Environment Setup dependency for worker node
 	cd scripts/worker_node && bash setup.sh
 
-build-js: ##@Nodejs Build js files
+build-admin-js: ##@Nodejs Build admin dashboard js files
+	@$(MAKE) initial-env
 	bash scripts/master_node/build_js.sh
+
+build-user-dashboard-js: ##@Nodejs Build user dashboard js files
 	@$(MAKE) -C user-dashboard/ build-js
 
 watch-mode: ##@Nodejs Run watch mode with js files for react

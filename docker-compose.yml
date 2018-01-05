@@ -10,7 +10,7 @@
 #  nginx: front end
 #  mongo: mongo db
 
-version: '2'
+version: '3.2'
 services:
   # cello dashboard service
   dashboard:
@@ -28,6 +28,7 @@ services:
       - LOG_LEVEL=DEBUG  # what level log will be output
       - STATIC_FOLDER=$STATIC_FOLDER
       - TEMPLATE_FOLDER=$TEMPLATE_FOLDER
+      - ENABLE_EMAIL_ACTIVE=$ENABLE_EMAIL_ACTIVE
     expose:
       - "8080"
     volumes:  # This should be removed in product env
@@ -75,7 +76,14 @@ services:
     hostname: mongo
     container_name: mongo
     restart: unless-stopped
-    mem_limit: 2048m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 2048M
+        reservations:
+          cpus: '0.10'
+          memory: 256M
     ports:
       #- "27017:27017"  # use follow line instead in production env
       - "127.0.0.1:27017:27017"
@@ -91,7 +99,14 @@ services:
     hostname: nginx
     container_name: nginx
     restart: always
-    mem_limit: 2048m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 2048M
+        reservations:
+          cpus: '0.10'
+          memory: 256M
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.default.conf
       #- /opt/cello/nginx/log/:/var/log/nginx/
@@ -120,6 +135,14 @@ services:
       - RESTful_BaseURL=/api/v2/
       - DEBUG=node:*
       - DEV=$DEV
+      - ENABLE_EMAIL_ACTIVE=$ENABLE_EMAIL_ACTIVE
+      - SMTP_SERVER=$SMTP_SERVER
+      - SMTP_PORT=$SMTP_PORT
+      - SMTP_AUTH_USERNAME=$SMTP_AUTH_USERNAME
+      - SMTP_AUTH_PASSWORD=$SMTP_AUTH_PASSWORD
+      - FROM_EMAIL=$FROM_EMAIL
+      - WEBROOT=$WEBROOT
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
     volumes:
       - ./user-dashboard:/usr/app/src
     command: bash -c "cd /usr/app/src && [ "$DEV" = True ] && npm run dev || npm start"
