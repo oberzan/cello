@@ -1,9 +1,3 @@
-- name: Add Docker GPG key.
-  rpm_key:
-    key: https://download.docker.com/linux/centos/gpg
-    state: present
-  when: ansible_os_family == 'RedHat'
-
 - name: Install libselinux-python
   yum:
     name: libselinux-python
@@ -13,7 +7,6 @@
   yum:
     name: "{{ item }}"
     state: present
-    update_cache: yes
   with_items:
     - epel-release
     - yum-utils
@@ -60,13 +53,14 @@
   args:
     chdir: /tmp/build/git-2.14.3
 
-- command: bash -c 'chmod +x /etc/profile.d/git.sh'
+- command: bash -c 'chmod +x /etc/profile.d/git.sh;
+                    source /etc/bashrc'
   args:
     chdir: /tmp/build/git-2.14.3
 
-- command: bash -c 'source /etc/bashrc'
-  args:
-    chdir: /tmp/build/git-2.14.3
+# - command: bash -c 'source /etc/bashrc'
+#   args:
+#     chdir: /tmp/build/git-2.14.3
 
 
 
@@ -92,12 +86,22 @@
 #     option: enabled
 #     value: '0'
 
-- name: Install packages
+- name: Install packages1
   yum:
     name: "{{ item }}"
   with_items:
     - ['device-mapper-persistent-data', 'lvm2', 'ca-certificates']
+
+- name: Install packages2
+  yum:
+    name: "{{ item }}"
+  with_items:
     - ['docker-ce', 'libtool', 'libtool-ltdl-devel', 'net-tools', 'autoconf', 'automake']
+
+- name: Install packages3
+  yum:
+    name: "{{ item }}"
+  with_items:
     - ['make', 'gcc-c++', 'unzip']
 
 - name: Install python-pip
@@ -114,8 +118,3 @@
 #     path: /etc/sysconfig/network
 #     state: present
 #     line: SEARCH="{{ cluster.domain | default('fabric') }}"
-
-# - name: Restart network service
-#   service:
-#     name: network
-#     status: restarted

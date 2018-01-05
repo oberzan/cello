@@ -26,6 +26,8 @@ fabric: {
   # all names must be in lower case. Numeric characters cannot be used to start
   # or end a name. Character dot (.) can only be used in names of peers and orderers.
 
+  channel_name: businesschannel,
+
   network: {
     fabric001: {
       cas: ["ca1.org1", "ca1.ordererorg1"],
@@ -51,7 +53,8 @@ fabric: {
     }
   },
 
-  baseimage_tag: "1.1.0-preview",
+  tag: "1.1.0-preview",
+  baseimage_tag: "0.4.2",
   ca: { tag: "1.1.0-preview", admin: "admin", adminpw: "adminpw" },
 
   # Composer settings

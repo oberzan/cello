@@ -4,6 +4,12 @@ OrdererOrgs:
 {% for org in ordererorgs %}
   - Name: {{ org }}
     Domain: {{ org }}
+    CA:
+{% for ca in cas %}
+{% if ca.org == org %}
+      Hostname: {{ ca.hostname }}
+{% endif %}
+{% endfor %}
     Specs:
 {%   for item in orderers %}
 {%     if item.org == org %}

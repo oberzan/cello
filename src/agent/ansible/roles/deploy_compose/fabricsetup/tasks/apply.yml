@@ -31,7 +31,8 @@
     allpeers: "{{ [] }}"
     clihost: ""
     filterstr: ""
-    thetag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
+    thetag: "{{ rawarch.stdout + '-' + fabric.tag }}"
+    baseimagetag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
     catag: "{{ rawarch.stdout + '-' + fabric.ca.tag }}"
 
 - name: Make sure that working directory is clean
@@ -140,30 +141,30 @@
     scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
     ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/images/fabricimages.tar"
     "{{ fabricworkdir }}/fabricimages.tar"
-  when: fabric.baseimage_tag == '' and inventory_hostname not in groups['builders']
+  when: fabric.tag == '' and inventory_hostname not in groups['builders']
 
 - name: Pull container version file from the build machine
   command: >-
     scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
     ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/images/VERSION"
     "{{ fabricworkdir }}/VERSION"
-  when: fabric.baseimage_tag == ''
+  when: fabric.tag == ''
 
 - name: Load all the docker images created by build machine
   shell: >-
     docker load -i {{ fabricworkdir }}/fabricimages.tar
-  when: fabric.baseimage_tag == '' and inventory_hostname not in groups['builders']
+  when: fabric.tag == '' and inventory_hostname not in groups['builders']
 
 - name: Find out the image tags
   slurp:
     src: "{{ fabricworkdir }}/VERSION"
   register: project_version
-  when: fabric.baseimage_tag == ''
+  when: fabric.tag == ''
 
 - name: Set the container tag
   set_fact:
     thetag: "{{ arch + '-' + (project_version['content'] | b64decode) }}"
-  when: fabric.baseimage_tag == ''
+  when: fabric.tag == ''
 
 - name: Unpack the certificates
   unarchive:
@@ -223,7 +224,7 @@
 
 - name: Pull container images from the docker hub
   command: "docker pull {{ item }}"
-  when: fabric.baseimage_tag | length > 0
+  when: fabric.tag | length > 0
   with_items:
     - "hyperledger/fabric-tools:{{ thetag }}"
     - "hyperledger/fabric-ccenv:{{ thetag }}"
@@ -232,6 +233,8 @@
     - "hyperledger/fabric-peer:{{ thetag }}"
     - "hyperledger/fabric-orderer:{{ thetag }}"
     - "hyperledger/fabric-couchdb:{{ thetag }}"
+    - "hyperledger/fabric-baseimage:{{ baseimagetag }}"
+    - "hyperledger/fabric-baseos:{{ baseimagetag }}"
     - "node:8.9"
 
 - name: Create docker compose files
@@ -259,27 +262,45 @@
   tags: "fabricup"
 #####################################################################
 
-# - name: Locate a host to run peer channel create command
-#   set_fact:
-#     clihost: "{{ item }}"
-#     clipeer: "{{ allpeers | random }}"
-#     cliorderer: "{{ allorderers | random }}"
-#   when: peers | length > 0 and clihost == ""
-#   with_items: "{{ groups['allnodes'] }}"
-
+- name: Locate a host to run peer channel create command
+  set_fact:
+    clihost: "{{ item }}"
+    clipeer: "{{ allpeers | random }}"
+    cliorderer: "{{ allorderers | random }}"
+  when: peers | length > 0 and clihost == ""
+  with_items: "{{ groups['allnodes'] }}"
+###
 - name: Copy app directory to server hosts
   synchronize:
     src: "{{ playbook_dir }}/fabricsetup/files/app"
     dest: "{{ fabricworkdir }}/run"
+  no_log: True
+  when: servers | length > 0
+
+- name: Copy app directory to server hosts
+  synchronize:
+    src: "{{ playbook_dir }}/fabricsetup/files/Dockerfile-server"
+    dest: "{{ fabricworkdir }}/run"
+  when: servers | length > 0
+
+- name: Template testAPI
+  vars:
+    CHANNEL_NAME: "{{ fabric.channel_name }}"
+  template:
+    src: "{{ playbook_dir }}/fabricsetup/templates/testAPI.sh.j2"
+    dest: "{{ fabricworkdir }}/run/app/testAPI.sh"
   when: servers | length > 0
 
 - name: Template configs
   template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/config.js"
-    dest: "{{ fabricworkdir }}/run/app/configs/"
+    src: "{{ playbook_dir }}/fabricsetup/templates/{{ item }}.j2"
+    dest: "{{ fabricworkdir }}/run/app/configs/{{ item }}"
   when: servers | length > 0
+  with_items:
+    - config.js
+    - config.json
 
-- name: Template configs
+- name: Template network-config
   template:
     src: "{{ playbook_dir }}/fabricsetup/templates/network-config.j2"
     dest: "{{ fabricworkdir }}/run/app/configs/network-config.yml"
@@ -292,13 +313,30 @@
   when: servers | length > 0
   with_items: "{{ peerorgs }}"
 
+###
+- name: Make sure that chaincode directory exists
+  file:
+    path: "{{ fabricworkdir }}/run/keyfiles/chaincode"
+    state: "directory"
+    mode: 0775
+  when: clihost == inventory_hostname
+
+- name: Move chaincode to the server
+  copy:
+    src: "{{ playbook_dir }}/fabricsetup/templates/example_cc.go"
+    dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/example_cc.go"
+    mode: "u=rw,g=rw"
+  when: clihost == inventory_hostname
+###
+
 - name: Start the server
+  become: true
   docker_service:
     project_src: "{{ fabricworkdir }}/run"
+    project_name: "{{ env }}.server-compose"
     files: 
       - server-compose.yml
     state: present
-    recreate: always
   when: servers | length > 0
   tags: "fabricup"
 

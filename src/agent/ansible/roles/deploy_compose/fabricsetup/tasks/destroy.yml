@@ -13,6 +13,10 @@
     - "ca-compose"
     - "orderer-compose"
     - "peer-compose"
+    - "server-compose"
+
+- debug:
+    msg: "{{ cfiles.results }}"
 
 - name: Shut down fabric components
   command: "docker-compose -p {{ env }}.{{ item.item }} -f {{ fabricworkdir }}/run/{{ item.item }}.yml down"
@@ -38,6 +42,9 @@
   shell: docker images | grep "dev-*" | cat | awk '{print $1}' | xargs docker rmi -f
   when: images.stdout != ""
   no_log: true
+
+- name: Remove orphaned docker volumes
+  shell: docker volume prune -f
 
 - name: Clean up the working directory
   become: true

@@ -36,10 +36,11 @@ var hfc = require('fabric-client');
 var helper = require('/app/helper.js');
 var createChannel = require('/app/create-channel.js');
 var join = require('/app/join-channel.js');
-//var install = require('/app/install-chaincode.js');
-//var instantiate = require('/app/instantiate-chaincode.js');
-//var invoke = require('/app/invoke-transaction.js');
-//var query = require('/app/query.js');
+var install = require('/app/install-chaincode.js');
+var instantiate = require('/app/instantiate-chaincode.js');
+var invoke = require('/app/invoke-transaction.js');
+var query = require('/app/query.js');
+
 var host = process.env.HOST || hfc.getConfigSetting('host');
 var port = process.env.PORT || hfc.getConfigSetting('port');
 ///////////////////////////////////////////////////////////////////////////////
@@ -187,9 +188,10 @@ app.post('/chaincodes', async function(req, res) {
 	logger.debug('==================== INSTALL CHAINCODE ==================');
 	var peers = req.body.peers;
 	var chaincodeName = req.body.chaincodeName;
-	var chaincodePath = req.body.chaincodePath;
+	//var chaincodePath = req.body.chaincodePath;
+	var chaincodePath = hfc.getConfigSetting('CC_SRC_PATH');
 	var chaincodeVersion = req.body.chaincodeVersion;
-  var chaincodeType = req.body.chaincodeType;
+  	var chaincodeType = req.body.chaincodeType;
 	logger.debug('peers : ' + peers); // target peers list
 	logger.debug('chaincodeName : ' + chaincodeName);
 	logger.debug('chaincodePath  : ' + chaincodePath);
@@ -225,7 +227,7 @@ app.post('/channels/:channelName/chaincodes', async function(req, res) {
 	var chaincodeName = req.body.chaincodeName;
 	var chaincodeVersion = req.body.chaincodeVersion;
 	var channelName = req.params.channelName;
-  var chaincodeType = req.body.chaincodeType;
+  	var chaincodeType = req.body.chaincodeType;
 	var fcn = req.body.fcn;
 	var args = req.body.args;
 	logger.debug('channelName  : ' + channelName);

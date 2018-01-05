@@ -6,25 +6,27 @@ services:
 {% for server in servers %}
   {{ server }}:
     container_name: {{ server }}
-    image: node:8.9
+    build:
+      context: .
+      dockerfile: Dockerfile-server
     network_mode: bridge
     hostname: {{ server }}
     environment:
       - CORE_LOGGING_LEVEL=debug
       - HFC_LOGGING={"debug":"console"}
     working_dir: /app
-# tcpdump -i eth0 -w /out.log -s 0 -vvv &
-# npm install TODO
-    command: bash -c 'apt-get update;
-                      apt-get install -y jq;
-                      chmod +100 testAPI.sh; 
+    # tcpdump -i eth0 -w /out.log -s 0 -vvv &
+    # npm install TODO
+    command: bash -c 'chmod +100 testAPI.sh; 
                       sleep 2;
-                      node app & ./testAPI.sh -l node;
-                      sleep 9999999'
+                      node app & ./testAPI.sh -l node'
+    tty: true
     ports:
       - 4000:4000
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker:/var/lib/docker
       - {{ fabricworkdir }}/run/app/:/app/
-#      - {{ fabricworkdir }}/channel-artifacts/:/artifacts/
       - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/allorgs
+      - {{ fabricworkdir }}/run/keyfiles/chaincode:/app/src/chaincode
 {% endfor %}

@@ -10,11 +10,19 @@ services:
     image: hyperledger/fabric-couchdb:{{ thetag }}
     network_mode: bridge
     hostname: couchdb-{{ peer.name }}
+    environment:
+      - DB_URL=http://localhost:5984/member_db
+      - COUCHDB_USER=blockchain #TODO
+      - COUCHDB_PASSWORD=pass #TODO
+    ports: 
+      - "5984"
 {% endif %}
 
   {{ peer.name }}:
     container_name: {{ peer.name }}
     image: hyperledger/fabric-peer:{{ thetag }}
+    depends_on:
+      - "couchdb-{{ peer.name }}"
     network_mode: bridge
     hostname: {{ peer.name }}
     environment:
@@ -41,6 +49,8 @@ services:
 {% if fabric.peer_db == 'CouchDB' %}
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-{{ peer.name }}:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=blockchain
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=pass #TODO
 {% endif %}
     volumes:
       - /var/run/:/host/var/run/
