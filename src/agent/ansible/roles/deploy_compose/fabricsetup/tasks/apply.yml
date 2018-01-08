@@ -84,6 +84,7 @@
   set_fact:
     allpeers: |
       {{ allpeers | default([]) + [{'org':item.split('@')[1].split('.')[-1],
+        'hostname':item.split('@')[1].split('.')[0],
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ peerls }}"

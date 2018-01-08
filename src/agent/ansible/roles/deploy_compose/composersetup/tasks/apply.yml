@@ -84,6 +84,7 @@
     nvm use 8
   args:
     executable: /bin/bash
+  no_log: true
 
 - name: Create /run/composer directory
   file:
@@ -170,20 +171,6 @@
 #     source ~/.bash_profile
 #     ln -s /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 #   become: true
-
-# - name: Install composer npm packages globally.
-  # environment:
-  #   NVM_DIR: ~/.nvm
-  #   PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
-  # npm:
-  #   name: "{{ item }}"
-  #   version: "{{ fabric.composer_tag }}"
-  #   global: yes
-  #   # executable: ~/.nvm/versions/node/v8.9.3/bin/npm
-  # with_items:
-  #   - composer-cli
-  #   - generator-hyperledger-composer
-  #   - composer-rest-server
 
 - name: Install composer npm packages globally.
   environment:

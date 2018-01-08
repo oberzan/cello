@@ -36,11 +36,12 @@ channels:
     # Required.
     peers:
 {% for peer in allpeers %}
+{% set first_peer = allpeers | selectattr('org', 'equalto', peer.org) | map(attribute='name') | first %}
       {{ peer.name }}:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: {{ "peer1" in peer.name | ternary('true','false') }} #TODO
+        eventSource: {{ first_peer == peer.name | ternary('true','false') }} #TODO
 {% endfor %}
 
     # [Optional]. what chaincodes are expected to exist on this channel? The application can use
@@ -95,8 +96,6 @@ peers:
   {{ peer.name }}:
     url: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7051
     eventUrl: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7053
-    # grpcOptions:
-    #   ssl-target-name-override: peer0.org1.example.com
     tlsCACerts:
       path: /etc/hyperledger/allorgs/{{ peer.org }}/peers/{{ peer.name }}/tls/ca.crt
 

@@ -7,7 +7,7 @@ services:
 {% if fabric.peer_db == 'CouchDB' %}
   couchdb-{{ peer.name }}:
     container_name: couchdb-{{ peer.name }}
-    image: hyperledger/fabric-couchdb:{{ (fabric.helper_tag == "") | ternary(thetag, helpertag) }}
+    image: hyperledger/fabric-couchdb:{{ thetag }}
     network_mode: bridge
     hostname: couchdb-{{ peer.name }}
     environment:
@@ -33,7 +33,7 @@ services:
       #- CORE_PEER_ENDORSER_ENABLED=true
       - CORE_PEER_GOSSIP_USELEADERELECTION=true #{{ allpeers|selectattr('org','equalto',peer.org)|list|selectattr('role','equalto','leader')|list|length|int==0 }}
       - CORE_PEER_GOSSIP_ORGLEADER=false #{{ (peer.role == "leader") | ternary('true','false') }}
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.{{ peer.org }}:7051 #TODO
+      - CORE_PEER_GOSSIP_BOOTSTRAP={{ allpeers | selectattr('org', 'equalto', peer.org) | selectattr('role', 'equalto', 'anchor') | map(attribute='name') | first }}:7051
       #- CORE_PEER_PROFILE_ENABLED=true
       - CORE_PEER_TLS_ENABLED={{ fabric.tls | lower }}
 {% if fabric.tls %}

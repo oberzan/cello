@@ -2,38 +2,28 @@
 function main {
   sleep 3
 
-  echo "POST request Enroll on Org1  ..."
+  {% for org in peerorgs %}
+  echo "POST request Enroll on {{ org }}  ..."
   echo
-  ORG1_TOKEN=$(curl -s -X POST \
+  {{ org|upper }}_TOKEN=$(curl -s -X POST \
     http://localhost:4000/users \
     -H "content-type: application/x-www-form-urlencoded" \
-    -d 'username=Jim&orgName=org1')
-  echo $ORG1_TOKEN
-  ORG1_TOKEN=$(echo $ORG1_TOKEN | jq ".token" | sed "s/\"//g")
+    -d 'username=Jim{{ loop.index }}&orgName={{ org }}')
+  echo ${{ org|upper }}_TOKEN
+  {{ org|upper }}_TOKEN=$(echo ${{ org|upper }}_TOKEN | jq ".token" | sed "s/\"//g")
   echo
-  echo "ORG1 token is $ORG1_TOKEN"
+  echo "{{ org|upper }} token is ${{ org|upper }}_TOKEN"
   echo
-  echo
-  echo "POST request Enroll on Org2 ..."
-  echo
-  ORG2_TOKEN=$(curl -s -X POST \
-    http://localhost:4000/users \
-    -H "content-type: application/x-www-form-urlencoded" \
-    -d 'username=Barry&orgName=org2')
-  echo $ORG2_TOKEN
-  ORG2_TOKEN=$(echo $ORG2_TOKEN | jq ".token" | sed "s/\"//g")
-  echo
-  echo "ORG2 token is $ORG2_TOKEN"
-  echo
-
+  {% endfor %}
   echo
   sleep 5
 
+  {% set one_peer = allpeers | first %}
   echo "POST request Create channel  ..."
   echo
   curl -s -X POST \
     http://localhost:4000/channels \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
     "channelName":"{{ CHANNEL_NAME }}",
@@ -46,26 +36,20 @@ function main {
   sleep 5
   echo
   echo
-  echo "POST request Join channel on org1"
+  {% for org in peerorgs %}
+  echo
+  echo
+  echo "POST request Join channel on {{ org }}"
   curl -s -X POST \
     http://localhost:4000/channels/{{ CHANNEL_NAME }}/peers \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+    -H "authorization: Bearer ${{ org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
-    "peers": ["peer1.org1", "peer2.org1", "peer3.org1"]
+    "peers": ["{{ allpeers | selectattr('org', 'equalto', org) | join('", "', attribute="name") }}"]
   }'
   echo
   echo
-
-  echo
-  echo "POST request Join channel on org2"
-  curl -s -X POST \
-    http://localhost:4000/channels/{{ CHANNEL_NAME }}/peers \
-    -H "authorization: Bearer $ORG2_TOKEN" \
-    -H "content-type: application/json" \
-    -d '{
-    "peers": ["peer1.org2","peer2.org2","peer3.org2"]
-  }'
+  {% endfor %}
 
   echo
   echo $GOPATH
@@ -91,11 +75,11 @@ function main {
 
   sleep 3
 
-  echo "POST instantiate chaincode on peer1 of Org1"
+  echo "POST instantiate chaincode on {{ one_peer.hostname }} of {{ one_peer.org }}"
   echo
   curl -s -X POST \
     http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
     "chaincodeName":"example_cc",
@@ -105,11 +89,11 @@ function main {
   }'
   echo
 
-  echo "POST invoke chaincode on peers of Org1 and Org2"
+  echo "POST invoke chaincode on all peers"
   echo
   TRX_ID=$(curl -s -X POST \
     http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
     "fcn":"move",
@@ -119,11 +103,11 @@ function main {
   echo
   echo
 
-  echo "GET query chaincode on peer1 of Org1"
+  echo "GET query chaincode on {{ one_peer.hostname }} of {{ one_peer.org }}"
   echo
   curl -s -X GET \
-    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc?peer=peer1.org1&fcn=query&args=%5B%22a%22%5D" \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc?peer={{ one_peer.hostname }}.{{ one_peer.org }}&fcn=query&args=%5B%22a%22%5D" \
+    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
   echo
@@ -131,16 +115,16 @@ function main {
   echo "GET query Block by blockNumber"
   echo
   curl -s -X GET \
-    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/blocks/1?peer=peer1.org1" \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/blocks/1?peer={{ one_peer.hostname }}.{{ one_peer.org }}" \
+    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
   echo
 
   echo "GET query Transaction by TransactionID"
   echo
-  curl -s -X GET http://localhost:4000/channels/{{ CHANNEL_NAME }}/transactions/$TRX_ID?peer=peer1.org1 \
-    -H "authorization: Bearer $ORG1_TOKEN" \
+  curl -s -X GET http://localhost:4000/channels/{{ CHANNEL_NAME }}/transactions/$TRX_ID?peer={{ one_peer.hostname }}.{{ one_peer.org }} \
+    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
 
