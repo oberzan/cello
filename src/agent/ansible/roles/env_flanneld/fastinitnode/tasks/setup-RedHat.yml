@@ -24,39 +24,55 @@
 #     name: git
 #     state: latest
 
+
+- name: Check if git is installed
+  shell: '/usr/local/bin/git version; /usr/local/bin/git version | grep "version 2.1[0-9]."'
+  register: git_check
+  failed_when: false
+
+- debug:
+    msg: "{{ git_check }}"
+
 - name: Remove git
   yum:
     name: git
     state: absent
+  when: git_check.rc > 0
 
 - file:
     path: /tmp/build
     state: directory
     mode: 0755
+  when: git_check.rc > 0
 
 - name: Unarchive git
   unarchive:
-    src: https://github.com/git/git/archive/v2.14.3.tar.gz
+    src: https://github.com/git/git/archive/v2.15.1.tar.gz
     dest: /tmp/build
     remote_src: yes
+  when: git_check.rc > 0
 
 - name: Install git
-  command: bash -c 'make prefix=/usr/local/git all'
+  command: bash -c 'make prefix=/usr/local all'
   args:
-    chdir: /tmp/build/git-2.14.3
+    chdir: /tmp/build/git-2.15.1
+  when: git_check.rc > 0
 
-- command: bash -c 'make prefix=/usr/local/git install'
+- command: bash -c 'make prefix=/usr/local install'
   args:
-    chdir: /tmp/build/git-2.14.3
+    chdir: /tmp/build/git-2.15.1
+  when: git_check.rc > 0
 
-- command: bash -c 'echo "pathmunge /usr/local/git/bin/" > /etc/profile.d/git.sh'
-  args:
-    chdir: /tmp/build/git-2.14.3
+# - lineinfile: 
+#     line: "pathmunge /usr/local/git/bin/"
+#     dest: "/etc/profile.d/git.sh"
+#     insertafter: EOF
+#     state: present
+#   when: git_check.rc > 0
 
-- command: bash -c 'chmod +x /etc/profile.d/git.sh;
-                    source /etc/bashrc'
-  args:
-    chdir: /tmp/build/git-2.14.3
+# - command: bash -c 'chmod +x /etc/profile.d/git.sh;
+#                     source /etc/bashrc'
+#   when: git_check.rc > 0
 
 # - command: bash -c 'source /etc/bashrc'
 #   args:
