@@ -3,12 +3,25 @@
     name: libselinux-python
     state: present
 
+- name: Check if Red Hat 7
+  shell: cat /etc/redhat-release | grep '^Red Hat Enterprise Linux Server release 7'
+  register: check_RedHat7
+  failed_when: false
+
+- name: Add epel-release
+  command: rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  when: check_RedHat7.rc == 0
+
+- name: Yum install latest epel-release
+  yum:
+    name: epel-release
+    state: latest
+
 - name: Install 
   yum:
     name: "{{ item }}"
     state: present
   with_items:
-    - epel-release
     - yum-utils
     - curl-devel
     - expat-devel
