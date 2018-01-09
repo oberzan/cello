@@ -36,6 +36,7 @@
     - { name: "docker-compose" }
     - { name: "protobuf" }
     - { name: "couchdb==1.0" }
+    - { name: "jinja2==2.9.6" }
 
 - name: Grant the user docker permission
   user:

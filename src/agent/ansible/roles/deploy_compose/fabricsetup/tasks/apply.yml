@@ -37,7 +37,6 @@
 
 - name: Make sure that working directory is clean
   become: true
-  become_user: root
   file:
     path: "{{ fabricworkdir }}/run"
     state: "absent"
