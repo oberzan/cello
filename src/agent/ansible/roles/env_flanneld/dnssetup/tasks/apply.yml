@@ -37,16 +37,11 @@
 
 - name: Check if there are existing skydns containers
   command: docker ps -a -f name=skydns.{{ node_name }}
-  register: hasSkyContainer
-
-- name: Check if there are existing registrator containers
-  command: docker ps -a -f name=registrator.{{ node_name }}
-  register: hasRegContainer
+  register: hasContainer
 
 - name: Remove the existing skydns and registrator containers
   command: docker rm -f skydns.{{ node_name }} registrator.{{ node_name }}
-  when: hasSkyContainer.stdout_lines | length > 1 or
-        hasRegContainer.stdout_lines | length > 1
+  when: hasContainer.stdout_lines | length > 1
 
 - name: Get nameservers
   shell: grep -v "^#" /etc/resolv.conf|grep nameserver|awk '{print $2 ":53"}'
