@@ -23,7 +23,7 @@ var util = require('util');
 var fs = require('fs-extra');
 var User = require('fabric-client/lib/User.js');
 var crypto = require('crypto');
-//var copService = require('fabric-ca-client');
+var copService = require('fabric-ca-client');
 
 var hfc = require('fabric-client');
 hfc.setLogger(logger);
