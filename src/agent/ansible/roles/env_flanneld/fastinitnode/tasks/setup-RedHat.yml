@@ -3,25 +3,17 @@
     name: libselinux-python
     state: present
 
-- name: Check if Red Hat 7
-  shell: cat /etc/redhat-release | grep '^Red Hat Enterprise Linux Server release 7'
-  register: check_RedHat7
-  failed_when: false
-
-- name: Add epel-release
-  command: rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-  when: check_RedHat7.rc == 0
-
-- name: Yum install latest epel-release
-  yum:
-    name: epel-release
-    state: latest
+# - name: Check if Red Hat 7
+#   shell: cat /etc/redhat-release | grep '^Red Hat Enterprise Linux Server release 7'
+#   register: check_RedHat7
+#   failed_when: false
 
 - name: Install 
   yum:
     name: "{{ item }}"
     state: present
   with_items:
+    - epel-release
     - yum-utils
     - curl-devel
     - expat-devel
@@ -76,44 +68,29 @@
     chdir: /tmp/build/git-2.15.1
   when: git_check.rc > 0
 
-# - lineinfile: 
-#     line: "pathmunge /usr/local/git/bin/"
-#     dest: "/etc/profile.d/git.sh"
-#     insertafter: EOF
-#     state: present
-#   when: git_check.rc > 0
-
-# - command: bash -c 'chmod +x /etc/profile.d/git.sh;
-#                     source /etc/bashrc'
-#   when: git_check.rc > 0
-
-# - command: bash -c 'source /etc/bashrc'
-#   args:
-#     chdir: /tmp/build/git-2.14.3
 
 
+- name: Install docker-ce-selinux
+  yum:
+    name: https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.2.ce-1.el7.centos.noarch.rpm
+- name: Install docker-ce
+  yum:
+    name: https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.2.ce-1.el7.centos.x86_64.rpm
+    
+# - name: Add Docker repository
+#   yum_repository:
+#     name: docker-ce
+#     description: Docker YUM repo
+#     baseurl: https://download.docker.com/linux/centos/docker-ce.repo
+#     keepcache: 0
 
-- name: Add Docker repository.
-  get_url:
-    url: "https://download.docker.com/linux/centos/docker-ce.repo"
-    dest: '/etc/yum.repos.d/docker-ce.repo'
-    owner: root
-    group: root
-    mode: 0644
-
-# - name: Configure Docker Edge repo.
-#   ini_file:
+# - name: Add Docker repository.
+#   get_url:
+#     url: "https://download.docker.com/linux/centos/docker-ce.repo"
 #     dest: '/etc/yum.repos.d/docker-ce.repo'
-#     section: 'docker-ce-edge'
-#     option: enabled
-#     value: '0'
-
-# - name: Configure Docker Test repo.
-#   ini_file:
-#     dest: '/etc/yum.repos.d/docker-ce.repo'
-#     section: 'docker-ce-test'
-#     option: enabled
-#     value: '0'
+#     owner: root
+#     group: root
+#     mode: 0644
 
 - name: Install packages1
   yum:
@@ -125,7 +102,7 @@
   yum:
     name: "{{ item }}"
   with_items:
-    - ['docker-ce', 'libtool', 'libtool-ltdl-devel', 'net-tools', 'autoconf', 'automake']
+    - ['libtool', 'libtool-ltdl-devel', 'net-tools', 'autoconf', 'automake']
 
 - name: Install packages3
   yum:
