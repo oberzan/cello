@@ -17,9 +17,11 @@ services:
     working_dir: /app
     # tcpdump -i eth0 -w /out.log -s 0 -vvv &
     # npm install TODO
-    command: bash -c 'chmod +100 testAPI.sh; 
+    command: bash -c 'chmod +100 testAPI.sh;
+                      node app & SPID=$$!;
                       sleep 2;
-                      node app & ./testAPI.sh -l node'
+                      ./testAPI.sh -l node;
+                      wait $$SPID;'
     tty: true
     ports:
       - 4000:4000

@@ -6,6 +6,7 @@
 
 - name: Remove registrator service
   command: docker rm -f registrator.{{ node_name }}
+  ignore_errors: true
 
 - name: Remove dns service
   command: docker rm -f skydns.{{ node_name }}
