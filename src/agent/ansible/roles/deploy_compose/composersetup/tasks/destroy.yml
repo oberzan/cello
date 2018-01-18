@@ -1,0 +1,30 @@
+---
+- name: Setup variables
+  set_fact:
+    fabricworkdir: "/opt/gopath/{{ env }}/fabric"
+    peers: "{{ [] }}"
+    peerorgs: "{{ [] }}"
+
+- name: Get peer container list
+  set_fact:
+    peers: |
+      {{ peers + [{'org':item.split('@')[1].split('.')[-1],
+        'name':item.split('@')[1],
+        'role':item.split('@')[0]}] }}
+  with_items: "{{ fabric.network[hostvars[inventory_hostname].inter_name].peers | default([]) }}"
+
+- name: Get the peer org list
+  set_fact:
+    peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
+
+- name: Delete PeerAdmin cards
+  shell:
+    composer card delete -n PeerAdmin@{{ env }}-{{ item }}
+  with_items: "{{ peerorgs }}"
+  ignore_errors: true
+
+- name: Delete network users' card
+  shell:
+    composer card delete -n user-{{ item }}@test-network
+  with_items: "{{ peerorgs }}"
+  ignore_errors: true

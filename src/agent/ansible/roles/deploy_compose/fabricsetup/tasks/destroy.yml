@@ -15,8 +15,8 @@
     - "peer-compose"
     - "server-compose"
 
-- debug:
-    msg: "{{ cfiles.results }}"
+# - debug:
+#     msg: "{{ cfiles.results }}"
 
 - name: Shut down fabric components
   command: "docker-compose -p {{ env }}.{{ item.item }} -f {{ fabricworkdir }}/run/{{ item.item }}.yml down"
