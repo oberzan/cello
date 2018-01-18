@@ -23,10 +23,25 @@ else
 	}
 fi
 
-echo_b "This script will setup the docker images for master node"
-echo_b "Pull python:3.5, mongo:3.2, mongo-express:0.30(optional for debugging) and yeasy/nginx"
+echo_b "Downloading the docker images for master node"
 
-docker pull python:3.5 \
-	&& docker pull mongo:3.2 \
-	&& docker pull mongo-express:0.30 \
-	&& docker pull yeasy/nginx:latest
+# TODO: will be removed after we have the user dashboard image
+echo_b "Check node:9.2 image."
+[ -z "$(docker images -q node:9.2 2> /dev/null)" ] && { echo "pulling node:9.2"; docker pull node:9.2; }
+
+# docker image
+ARCH=$(uname -m)
+VERSION=latest
+
+for IMG in baseimage mongo nginx ; do
+	HLC_IMG=hyperledger/cello-${IMG}
+	if [ -z "$(docker images -q ${HLC_IMG} 2> /dev/null)" ]; then  # not exist
+		echo_b "Pulling ${HLC_IMG}:${ARCH}-${VERSION} from dockerhub"
+		docker pull ${HLC_IMG}:${ARCH}-${VERSION}
+		docker tag ${HLC_IMG}:${ARCH}-${VERSION} ${HLC_IMG}
+	else
+		echo_g "${HLC_IMG} already exist locally"
+	fi
+done
+
+echo_g "All Image downloaded "

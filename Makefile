@@ -2,6 +2,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+#
+# -------------------------------------------------------------
+# This makefile defines the following targets
+#
+#   - all (default):  Builds all targets and runs all tests/checks
+#   - checks:         Setup as master node, and runs all tests/checks, will be triggered by CI
+#   - clean:          Cleans the build area
+#   - doc:            Start a local web service to explore the documentation
+#   - docker[-clean]: Build/clean docker images locally
+#	- license:		  checks sourrce files for Apache license header
+#   - help:           Output the help instructions for each command
+#   - log:            Check the recent log output of all services
+#   - restart:        Stop the cello service and then start
+#   - setup-master:   Setup the host as a master node, install pkg and download docker images
+#   - setup-worker:   Setup the host as a worker node, install pkg and download docker images
+#   - start:          Start the cello service
+#   - stop:           Stop the cello service, and remove all service containers
 
 GREEN  := $(shell tput -Txterm setaf 2)
 WHITE  := $(shell tput -Txterm setaf 7)
@@ -24,18 +41,19 @@ DOCKER_BASE_s390x=s390x/debian:jessie
 DOCKER_BASE=$(DOCKER_BASE_$(ARCH))
 BASE_VERSION ?= $(ARCH)-$(VERSION)
 
-ifneq ($(IS_RELEASE),true)
+ifeq ($(IS_RELEASE),false)
 	EXTRA_VERSION ?= snapshot-$(shell git rev-parse --short HEAD)
-	DOCKER_TAG=$(BASE_VERSION)-$(EXTRA_VERSION)
+	IMG_TAG=$(BASE_VERSION)-$(EXTRA_VERSION)
 else
-	DOCKER_TAG=$(BASE_VERSION)
+	IMG_TAG=$(BASE_VERSION)
 endif
 
+# Docker images needed to run cello services
 DOCKER_IMAGES = baseimage mongo nginx
-DUMMY = .$(DOCKER_TAG)
+DUMMY = .$(IMG_TAG)
 
 ifeq ($(DOCKER_BASE), )
-$(error "Architecture \"$(ARCH)\" is unsupported")
+	$(error "Architecture \"$(ARCH)\" is unsupported")
 endif
 
 # Frontend needed
@@ -57,8 +75,10 @@ else
 	SED = sed -i
 endif
 
-ifneq (${THEME}, basic)
-	ifeq (${THEME}, react)
+ifeq (${THEME}, basic) # basic theme doesn't need js compiling
+	START_OPTIONS = initial-env
+else
+	ifeq (${THEME}, react) # react needs compiling js first
 		ifneq ($(wildcard ./src/${STATIC_FOLDER}/js/dist),)
 			BUILD_JS=
 		else
@@ -72,8 +92,6 @@ ifneq (${THEME}, basic)
 		endif
 	endif
 	START_OPTIONS = initial-env $(BUILD_JS)
-else
-	START_OPTIONS = initial-env
 endif
 
 
@@ -83,34 +101,41 @@ build/docker/baseimage/$(DUMMY): build/docker/baseimage/$(DUMMY)
 build/docker/nginx/$(DUMMY): build/docker/nginx/$(DUMMY)
 build/docker/mongo/$(DUMMY): build/docker/mongo/$(DUMMY)
 
-build/docker/%/$(DUMMY):
+build/docker/%/$(DUMMY): ##@Build an image locally
 	$(eval TARGET = ${patsubst build/docker/%/$(DUMMY),%,${@}})
-	$(eval DOCKER_NAME = $(BASENAME)-$(TARGET))
+	$(eval IMG_NAME = $(BASENAME)-$(TARGET))
 	@mkdir -p $(@D)
 	@echo "Building docker $(TARGET)"
 	@cat config/$(TARGET)/Dockerfile.in \
 		| sed -e 's|_DOCKER_BASE_|$(DOCKER_BASE)|g' \
 		| sed -e 's|_NS_|$(DOCKER_NS)|g' \
-		| sed -e 's|_TAG_|$(DOCKER_TAG)|g' \
+		| sed -e 's|_TAG_|$(IMG_TAG)|g' \
 		> $(@D)/Dockerfile
 	docker build -f $(@D)/Dockerfile \
-		-t $(DOCKER_NAME) \
-		-t $(DOCKER_NAME):$(DOCKER_TAG) \
-		.
-	@touch $@
+		-t $(IMG_NAME) \
+		-t $(IMG_NAME):$(IMG_TAG) \
+		. ;
+	@touch $@ ;
 
 build/docker/%/.push: build/docker/%/$(DUMMY)
 	@docker login \
 		--username=$(DOCKER_HUB_USERNAME) \
 		--password=$(DOCKER_HUB_PASSWORD)
-	@docker push $(BASENAME)-$(patsubst build/docker/%/.push,%,$@):$(DOCKER_TAG)
+	@docker push $(BASENAME)-$(patsubst build/docker/%/.push,%,$@):$(IMG_TAG)
 
-docker: $(patsubst %,build/docker/%/$(DUMMY),$(DOCKER_IMAGES))
+docker: $(patsubst %,build/docker/%/$(DUMMY),$(DOCKER_IMAGES)) ##@Generate docker images locally
+
+docker-clean: image-clean ##@Clean all existing images
+
+.PHONY: license
+license:
+	bash scripts/check_license.sh
 
 install: $(patsubst %,build/docker/%/.push,$(DOCKER_IMAGES))
 
-check: docker ##@Code Check code format
+check: setup-master ##@Code Check code format
 	tox
+	@$(MAKE) license
 	@$(MAKE) test-case
 	make start && sleep 10 && make stop
 
@@ -119,7 +144,7 @@ test-case: ##@Code Run test case for flask server
 
 clean: ##@Code Clean tox result
 	rm -rf .tox .cache *.egg-info build/
-	find . -name "*.pyc" -o -name "__pycache__" -exec rm -rf "{}" \;
+	find . -name "*.pyc" -o -name "__pycache__" | xargs rm -rf
 
 # TODO (david_dornseier): As long as there are no release versions, always rewrite
 # the entire changelog (bug)
@@ -127,7 +152,7 @@ changelog: ##@Update the changelog.md file in the root folder
 	#bash scripts/changelog.sh bd0c6db v$(PREV_VERSION)
 	bash scripts/changelog.sh v$(PREV_VERSION) HEAD
 
-doc: ##@Create local online documentation
+doc: ##@Create local online documentation and start serve
 	pip install mkdocs
 	mkdocs serve
 
@@ -162,9 +187,9 @@ initial-env: ##@Configuration Initial Configuration for dashboard
 	$(SED) 's/\(WEBROOT=\).*/\1${WEBROOT}/' .env
 	$(SED) 's/\(THEME=\).*/\1${THEME}/' .env
 
-start: docker ##@Service Start service
+start: ##@Service Start service
 	@$(MAKE) $(START_OPTIONS)
-	echo "Start all services..."
+	echo "Start all services... docker images must exist local now, otherwise, run 'make setup-master first' !"
 	docker-compose up -d --no-recreate
 
 stop: ##@Service Stop service
@@ -175,7 +200,7 @@ stop: ##@Service Stop service
 
 restart: stop start ##@Service Restart service
 
-setup-master: docker ##@Environment Setup dependency for master node
+setup-master: ##@Environment Setup dependency for master node
 	cd scripts/master_node && bash setup.sh
 
 setup-worker: ##@Environment Setup dependency for worker node
@@ -203,10 +228,10 @@ HELP_FUN = \
 	while(<>) { push @{$$help{$$2 // 'options'}}, [$$1, $$3] if /^([a-zA-Z\-]+)\s*:.*\#\#(?:@([a-zA-Z\-]+))?\s(.*)$$/ }; \
 	print "usage: make [target]\n\n"; \
 	for (sort keys %help) { \
-	print "${WHITE}$$_:${RESET}\n"; \
-	for (@{$$help{$$_}}) { \
-	$$sep = " " x (32 - length $$_->[0]); \
-	print "  ${YELLOW}$$_->[0]${RESET}$$sep${GREEN}$$_->[1]${RESET}\n"; \
+		print "${WHITE}$$_:${RESET}\n"; \
+		for (@{$$help{$$_}}) { \
+			$$sep = " " x (32 - length $$_->[0]); \
+			print "  ${YELLOW}$$_->[0]${RESET}$$sep${GREEN}$$_->[1]${RESET}\n"; \
 	}; \
 	print "\n"; }
 
@@ -226,3 +251,5 @@ HELP_FUN = \
 	restart \      # restart all services
 	stop \         # stop all services
 	docker \       # create docker image
+	license \	   # check for Apache license header
+
