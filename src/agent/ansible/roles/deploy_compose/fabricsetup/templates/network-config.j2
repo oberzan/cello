@@ -11,6 +11,7 @@ name: "{{ env }}"
 # the "x-type" property with the "hlfv1" value example below is used by Hyperledger Composer to
 # determine the type of Fabric networks (v0.6 vs. v1.0) it needs to work with.
 x-type: "hlfv1"
+x-commitTimeout: 300
 
 # Describe what the target network is/does.
 description: "TODO"
@@ -19,8 +20,17 @@ description: "TODO"
 version: "1.0"
 
 # The client section will be added on a per org basis see org1.yaml and org2.yaml
-#client:
-
+{% if clientorg is defined %}
+client:
+  organization: {{ clientorg }}
+  connection:
+    timeout:
+      peer:
+        endorser: 300
+        eventHub: 300
+        eventReg: 300
+      orderer: 300
+{% endif %}
 
 channels:
   businesschannel:
@@ -69,9 +79,9 @@ organizations:
     certificateAuthorities:
       - ca1.{{ org }} #TODO
     adminPrivateKey:
-      path: /etc/hyperledger/allorgs/{{ org }}/users/Admin@{{ org }}/msp/keystore/{{ adminkeys[org] }}
+      path: {{keyfilesdir}}/{{ org }}/users/Admin@{{ org }}/msp/keystore/{{ adminkeys[org] }}
     signedCert:
-      path: /etc/hyperledger/allorgs/{{ org }}/users/Admin@{{ org }}/msp/signcerts/Admin@{{ org }}-cert.pem
+      path: {{keyfilesdir}}/{{ org }}/users/Admin@{{ org }}/msp/signcerts/Admin@{{ org }}-cert.pem
 {% endfor %}
 
 
@@ -87,7 +97,7 @@ orderers:
     #    grpc-max-send-message-length: 15
 
     tlsCACerts:
-      path: /etc/hyperledger/allorgs/{{ orderer.org }}/orderers/{{ orderer.name }}/tls/ca.crt
+      path: {{keyfilesdir}}/{{ orderer.org }}/orderers/{{ orderer.name }}/tls/ca.crt
 {% endfor %}
 
 
@@ -97,7 +107,7 @@ peers:
     url: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7051
     eventUrl: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7053
     tlsCACerts:
-      path: /etc/hyperledger/allorgs/{{ peer.org }}/peers/{{ peer.name }}/tls/ca.crt
+      path: {{keyfilesdir}}/{{ peer.org }}/peers/{{ peer.name }}/tls/ca.crt
 
 {% endfor %}
 
@@ -118,7 +128,7 @@ certificateAuthorities:
     httpOptions:
       verify: false
     tlsCACerts:
-      path: /etc/hyperledger/allorgs/{{ ca.org }}/ca/{{ ca.name }}-cert.pem
+      path: {{keyfilesdir}}/{{ ca.org }}/ca/{{ ca.name }}-cert.pem
 
     # Fabric-CA supports dynamic user enrollment via REST APIs. A "root" user, a.k.a registrar, is
     # needed to enroll and invoke new users.

@@ -16,7 +16,7 @@ function main {
   echo
   {% endfor %}
   echo
-  sleep 5
+  sleep 3
 
   {% set one_peer = allpeers | first %}
   echo "POST request Create channel  ..."
@@ -32,12 +32,9 @@ function main {
   if [ 0 -ne $? ]; then return; fi;
 
   echo
-  echo
-  sleep 5
-  echo
+  sleep 3
   echo
   {% for org in peerorgs %}
-  echo
   echo
   echo "POST request Join channel on {{ org }}"
   curl -s -X POST \
@@ -48,12 +45,7 @@ function main {
     "peers": ["{{ allpeers | selectattr('org', 'equalto', org) | join('", "', attribute="name") }}"]
   }'
   echo
-  echo
   {% endfor %}
-
-  echo
-  echo $GOPATH
-  echo
 
   sleep 3
   {% for org in peerorgs %}
@@ -101,7 +93,6 @@ function main {
   }')
   echo "Transacton ID is $TRX_ID"
   echo
-  echo
 
   echo "GET query chaincode on {{ one_peer.hostname }} of {{ one_peer.org }}"
   echo
@@ -110,7 +101,6 @@ function main {
     -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
-  echo
 
   echo "GET query Block by blockNumber"
   echo
@@ -118,7 +108,6 @@ function main {
     "http://localhost:4000/channels/{{ CHANNEL_NAME }}/blocks/1?peer={{ one_peer.hostname }}.{{ one_peer.org }}" \
     -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
-  echo
   echo
 
   echo "GET query Transaction by TransactionID"

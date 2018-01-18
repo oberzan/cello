@@ -78,17 +78,13 @@ var getRegisteredUser = async function(username, userOrg, isJson) {
 			// client can now act as an agent for organization
 			// first check to see if the user is already enrolled
 		var user = await client.getUserContext(username, true);
-    logger.debug(44);
 		if (user && user.isEnrolled()) {
 			logger.info('Successfully loaded member from persistence');
 		} else {
 			// user was not enrolled, so we will need an admin user object to register
 			var admins = hfc.getConfigSetting('admins');
-      logger.debug(55);
 			let adminUserObj = await client.setUserContext({username: admins[0].username, password: admins[0].secret});
-      logger.debug(66);
 			let caClient = client.getCertificateAuthority();
-      logger.debug(77);
 			let secret = await caClient.register({
 				enrollmentID: username,
 				affiliation: userOrg.toLowerCase() + '.department1'
@@ -115,6 +111,11 @@ var getRegisteredUser = async function(username, userOrg, isJson) {
 	}
 
 };
+
+async function registerCAUser (hostname, orgname) {
+	//var client = await helper.getClientForOrg(orgName);
+	return hfc.getConfigSetting('network-config');
+}
 
 
 var setupChaincodeDeploy = function() {

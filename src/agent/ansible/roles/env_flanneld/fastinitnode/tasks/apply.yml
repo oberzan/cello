@@ -50,6 +50,12 @@
     dest: "/opt"
     remote_src: True
 
+- name: Fix up the search domain
+  lineinfile:
+    path: /etc/resolv.conf
+    state: present
+    line: search {{ cluster.domain | default('fabric') }}
+
 - name: Setup golang profile
   template:
     src: "{{ playbook_dir }}/../env_flanneld/fastinitnode/templates/goroot.j2"

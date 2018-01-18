@@ -64,5 +64,11 @@
     -resync 18
     skydns2://{{ hostvars[groups['etcdnodes'] | random].private_ip }}:2379/{{ domain }}
 
+- name:
+  lineinfile:
+    path: "/etc/resolv.conf"
+    insertbefore: BOF
+    line: "nameserver {{ hostvars[groups['allnodes'][0]].private_ip }}"
+
 #--privileged
 # - command: bash -c "iptables-save | grep \"FORWARD [^-]\""

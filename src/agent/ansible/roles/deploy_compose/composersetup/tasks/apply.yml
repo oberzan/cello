@@ -7,7 +7,10 @@
     ordererls: "{{ [] }}"
     peers: "{{ [] }}"
     peerorgs: "{{ [] }}"
-
+    adminkeys: "{{ {} }}"
+    allpeers: "{{ [] }}"
+    allcas: "{{ [] }}"
+    allorderers: "{{ [] }}"
 
 - name: Get peer container list
   set_fact:
@@ -49,15 +52,19 @@
   set_fact:
     peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
 
+- name: Create run/composer directory
+  file:
+    path: "{{ fabricworkdir }}/run/composer"
+    state: "directory"
 
-# - include: setup-RedHat.yml
-#   when: ansible_os_family == 'RedHat'
+- include: setup-RedHat.yml
+  when: ansible_os_family == 'RedHat'
 
-# - name: Download nvm install.sh
-#   get_url:
-#     url: https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh
-#     dest: "{{ fabricworkdir }}/run/composer/install.sh"
-#     mode: 0744
+- name: Download nvm install.sh
+  get_url:
+    url: https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh
+    dest: "{{ fabricworkdir }}/run/composer/install.sh"
+    mode: 0744
 
 - include_tasks: setup-Debian.yml
   when: ansible_os_family == 'Debian'
@@ -70,9 +77,6 @@
     curl https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh | bash
   args:
     warn: no
-
-- pause:
-    seconds: 20
 
 - name: Set node source
   environment:
@@ -89,112 +93,20 @@
 - name: Create /run/composer directory
   file:
     path: "{{ fabricworkdir }}/run/composer"
-    state: "directory"
-
-# - name: Add repository
-#   become: true
-#   become_user: root
-#   apt_repository:
-#     repo: "{{ item }}"
-#     state: present
-#   with_items:
-#     - ppa:git-core/ppa
-    
-
-# - name: Install the gpg key for nodejs LTS
-#   become: yes
-#   apt_key:
-#     url: "https://deb.nodesource.com/gpgkey/nodesource.gpg.key"
-#     state: present
-
-# - name: Add nodejs repository
-#   become: yes
-#   apt_repository:
-#     repo: deb https://deb.nodesource.com/setup_8.x nodejs
-#     update_cache: yes
-#     state: present
-
-
-
-
-# - name: Download prereqs-ubuntu.sh
-#   get_url:
-#     url: https://hyperledger.github.io/composer/prereqs-ubuntu.sh
-#     dest: "{{ fabricworkdir }}/run/composer/prereqs-ubuntu.sh"
-#     mode: 0744
-
-# - name: Install prereqs and remove prereqs-ubuntu.sh
-#   shell: |
-#     {{ fabricworkdir }}/run/composer/prereqs-ubuntu.sh
-#     rm {{ fabricworkdir }}/run/composer/prereqs-ubuntu.sh
-
-
-
-# - name: Install nvm and remove install.sh
-#   shell: |
-#     {{ fabricworkdir }}/run/composer/install.sh
-#     rm {{ fabricworkdir }}/run/composer/install.sh
-#     export NVM_DIR="${HOME}/.nvm"
-#     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-#     [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
-#     nvm install --lts
-#     nvm use --lts
-#     nvm alias default 'lts/*'
-   
-#     echo $NVM_BIN
-#   register: tmp
-# # npm install npm@latest -g
-# - set_fact:
-#     npm_path: "{{ tmp.stdout_lines | last }}/npm"
-    
-
-# - name: Install latest npm package globally.
-#   npm:
-#     name: npm
-#     version: latest
-#     global: yes
-
-# - command: npm install -g composer-cli@0.16.1
-# - command: npm install -g generator-hyperledger-composer@0.16.1
-# - command: npm install -g composer-rest-server@0.16.1
-# - command: npm install -g composer-cli@0.16.1
-
-# - command: ls $NVM_DIR
-#   environment:
-#     NVM_DIR: ~/.nvm/versions/node/v8.9.3/bin
-#     PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
-
-# - pause:
-#     seconds: 20
-
-# - shell: |
-#     source ~/.bash_profile
-#     ln -s /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
-#   become: true
+    state: "directory"    
 
 - name: Install composer npm packages globally.
   environment:
-    NVM_DIR: /home/{{ fabric.ssh_user }}/.nvm
-    PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
-  shell: |
-    npm install -g {{item}}@{{ fabric.composer_tag }}
+    NVM_DIR: ~/.nvm
+    PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+  npm:
+    name: "{{ item }}"
+    version: "{{ fabric.composer_tag }}"
+    global: yes
   with_items:
     - composer-cli
     - generator-hyperledger-composer
     - composer-rest-server
-
-#source /home/{{ fabric.ssh_user }}/.profile
-
-# - name: Install composer npm packages globally.
-#   environment:
-#     NVM_DIR: ~/.nvm
-#     PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
-#   npm:
-#     name: "{{ item }}"
-#     version: "{{ fabric.composer_tag }}"
-#     global: yes
-#   with_items:
-#     - generator-hyperledger-composer
 
 # - name: Install composer npm packages globally.
 #   npm:
@@ -210,18 +122,142 @@
     version: '2.0.0'
     global: yes
 
-- name: Template composer Org only connection profiles
+# - name: Template composer Org only connection profiles
+#   vars:
+#     ORG_ONLY: true
+#   template:
+#     src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
+#     dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}-only.json"
+#   with_items: "{{ peerorgs }}"
+
+# - name: Template composer Org connection profiles
+#   vars:
+#     ORG_ONLY: false
+#   template:
+#     src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
+#     dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}.json"
+#   with_items: "{{ peerorgs }}"
+
+- name: Process admin key files
+  find:
+    paths: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}/users/Admin@{{ item.org }}/msp/keystore"
+    patterns: "*_sk"
+    recurse: yes
+  with_items:
+    - "{{ allcas }}"
+  register: adminprocesskeys
+
+- name: Setup admin private key values
+  set_fact:
+    adminkeys: |
+      {{ adminkeys | combine( {item.item.org: item.files[0].path.split('/')[-1] } ) }}
+  with_items: "{{ adminprocesskeys.results }}"
+  no_log: True
+
+- name: Template connection profiles
   vars:
-    ORG_ONLY: true
+    clientorg: "{{ item }}"
+    keyfilesdir: "{{ fabricworkdir }}/run/keyfiles"
   template:
-    src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
-    dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}-only.json"
+    src: "{{ playbook_dir }}/fabricsetup/templates/network-config.j2"
+    dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}.yml"
   with_items: "{{ peerorgs }}"
 
-- name: Template composer Org connection profiles
-  vars:
-    ORG_ONLY: false
-  template:
-    src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
-    dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}.json"
+- name: Composer create card
+  shell: 
+    composer card create 
+      -p ./connection-{{ item }}.yml 
+      -u PeerAdmin 
+      -c ../keyfiles/{{ item }}/users/Admin@{{ item }}/msp/signcerts/Admin@{{ item }}-cert.pem
+      -k ../keyfiles/{{ item }}/users/Admin@{{ item }}/msp/keystore/{{ adminkeys[item] }}
+      -r PeerAdmin
+      -r ChannelAdmin
+      -f PeerAdmin@{{ env }}-{{ item }}.card
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"
+
+- name: Composer card import
+  vars:
+    DEBUG: "composer:*"
+  shell: 
+    composer card import -f PeerAdmin@{{ env }}-{{ item }}.card -n PeerAdmin@{{ env }}-{{ item }}
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+
+- name: Composer runtime install
+  vars:
+    DEBUG: "composer:*"
+  shell: 
+    composer runtime install -c PeerAdmin@{{ env }}-{{ item }} -n test-network
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+
+# - name: Composer create identities
+#   vars:
+#     DEBUG: "composer:*"
+#   shell:
+#     composer identity request 
+#       -c PeerAdmin@{{ env }}-org1
+#       -u admin -s adminpw 
+#       -d alice
+#   args:
+#     chdir: "{{ fabricworkdir }}/run/composer/"
+
+- name: Composer create identities
+  vars:
+    DEBUG: "composer:*"
+  shell:
+    composer identity request 
+      -c PeerAdmin@{{ env }}-{{ item }}
+      -u admin -s adminpw 
+      -d user-{{ item }}
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+
+- name: Copy empty-network .bna folder
+  copy:
+    src: "{{ playbook_dir }}/composersetup/files/test-network@0.0.1.bna"
+    dest: "{{ fabricworkdir }}/run/composer/"
+
+- name: Composer network start
+  vars:
+    DEBUG: "composer:*"
+  shell:
+    composer network start 
+      --card PeerAdmin@{{ env }}-{{ peerorgs.0 }}
+      --archiveFile test-network@0.0.1.bna
+      --networkAdmin user-{{ peerorgs.0 }}
+      --networkAdminCertificateFile user-{{ peerorgs.0 }}/admin-pub.pem
+      #--networkAdmin bob
+      #--networkAdminEnrollSecret bob/admin-pub.pem
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+
+- name: Composer create Alice's card
+  vars:
+    DEBUG: "composer:*"
+    user: user-{{ item }}
+  shell:
+    composer card create 
+      -p connection-{{ item }}.yml 
+      -u {{ user }} 
+      -n test-network 
+      -c {{ user }}/admin-pub.pem 
+      -k {{ user }}/admin-priv.pem
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+
+- name: Composer Alice's card import
+  vars:
+    DEBUG: "composer:*"
+  shell:
+    composer card import -f user-{{ item }}@test-network.card
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+

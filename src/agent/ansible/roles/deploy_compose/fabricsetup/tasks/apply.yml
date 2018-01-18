@@ -27,13 +27,15 @@
     peerls: "{{ [] }}"
     ordererls: "{{ [] }}"
     cals: "{{ [] }}"
-    serverls: "{{ [] }}"
     allpeers: "{{ [] }}"
     clihost: ""
     filterstr: ""
     thetag: "{{ rawarch.stdout + '-' + fabric.tag }}"
     baseimagetag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
     catag: "{{ rawarch.stdout + '-' + fabric.ca.tag }}"
+
+- set_fact:
+    server: "{{ fabric.network[current_host].server | default([]) }}"
 
 - name: Make sure that working directory is clean
   become: true
@@ -53,7 +55,6 @@
     peerls: "{{ peerls | default([]) + item.value.peers | default([]) }}"
     zookeeperls: "{{ zookeeperls | default([]) + item.value.zookeepers | default([]) }}"
     kafkals: "{{ kafkals | default([]) + item.value.kafkas | default([]) }}"
-    serverls: "{{ serverls | default([]) + item.value.servers | default([]) }}"
   with_dict: "{{ fabric.network }}"
 
 - name: Sort component list
@@ -128,7 +129,6 @@
   set_fact:
     zookeepers: "{{ fabric.network[current_host].zookeepers | default([]) }}"
     kafkas: "{{ fabric.network[current_host].kafkas | default([]) }}"
-    servers: "{{ fabric.network[current_host].servers | default([]) }}"
 
 - name: Pull certificates from the builder machine
   command: >-
@@ -190,7 +190,7 @@
     recurse: yes
   with_items:
     - "{{ allcas }}"
-  when: servers | length > 0
+  when: server | length > 1
   register: adminprocesskeys
 
 - name: Process private key files
@@ -211,7 +211,7 @@
     adminkeys: |
       {{ adminkeys | combine( {item.item.org: item.files[0].path.split('/')[-1] } ) }}
   with_items: "{{ adminprocesskeys.results }}"
-  when: servers | length > 0
+  when: server | length > 1
   no_log: True
 
 - name: Get the peer org list
@@ -248,7 +248,7 @@
     - { name: "kafka-compose", flag: "{{ kafkas }}" }
     - { name: "orderer-compose", flag: "{{ orderers }}" }
     - { name: "peer-compose", flag: "{{ peers }}" }
-    - { name: "server-compose", flag: "{{ servers }}" }
+    - { name: "server-compose", flag: "{{ server }}" }
 
 - name: Start fabric components
   command: "docker-compose -p {{ env }}.{{ item.name }} -f {{ fabricworkdir }}/run/{{ item.name }}.yml up -d"
@@ -270,18 +270,16 @@
   when: peers | length > 0 and clihost == ""
   with_items: "{{ groups['allnodes'] }}"
 ###
-- name: Copy app directory to server hosts
+- name: Copy Dockerfile-server file and app and configs directory to server hosts
   synchronize:
-    src: "{{ playbook_dir }}/fabricsetup/files/app"
+    src: "{{ playbook_dir }}/fabricsetup/files/{{ item }}"
     dest: "{{ fabricworkdir }}/run"
+  with_items:
+    - app
+    - configs
+    - Dockerfile-server
   no_log: True
-  when: servers | length > 0
-
-- name: Copy app directory to server hosts
-  synchronize:
-    src: "{{ playbook_dir }}/fabricsetup/files/Dockerfile-server"
-    dest: "{{ fabricworkdir }}/run"
-  when: servers | length > 0
+  when: server | length > 1
 
 - name: Template testAPI
   vars:
@@ -289,28 +287,33 @@
   template:
     src: "{{ playbook_dir }}/fabricsetup/templates/testAPI.sh.j2"
     dest: "{{ fabricworkdir }}/run/app/testAPI.sh"
-  when: servers | length > 0
+  when: server | length > 1
 
-- name: Template configs
+- name: Template config.js
   template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/{{ item }}.j2"
-    dest: "{{ fabricworkdir }}/run/app/configs/{{ item }}"
-  when: servers | length > 0
-  with_items:
-    - config.js
-    - config.json
+    src: "{{ playbook_dir }}/fabricsetup/templates/config.js.j2"
+    dest: "{{ fabricworkdir }}/run/app/config.js"
+  when: server | length > 1
+
+- name: Template config.json
+  template:
+    src: "{{ playbook_dir }}/fabricsetup/templates/config.json.j2"
+    dest: "{{ fabricworkdir }}/run/configs/config.json"
+  when: server | length > 1  
 
 - name: Template network-config
+  vars:
+    keyfilesdir: /etc/hyperledger/allorgs
   template:
     src: "{{ playbook_dir }}/fabricsetup/templates/network-config.j2"
-    dest: "{{ fabricworkdir }}/run/app/configs/network-config.yml"
-  when: servers | length > 0
+    dest: "{{ fabricworkdir }}/run/configs/network-config.yml"
+  when: server | length > 1
 
 - name: Template org configs
   template:
     src: "{{ playbook_dir }}/fabricsetup/templates/org-config.j2"
-    dest: "{{ fabricworkdir }}/run/app/configs/{{ item }}-config.yml"
-  when: servers | length > 0
+    dest: "{{ fabricworkdir }}/run/configs/{{ item }}-config.yml"
+  when: server | length > 1
   with_items: "{{ peerorgs }}"
 
 ###
@@ -319,14 +322,14 @@
     path: "{{ fabricworkdir }}/run/keyfiles/chaincode"
     state: "directory"
     mode: 0775
-  when: clihost == inventory_hostname
+  when: clihost == inventory_hostname #TODO
 
 - name: Move chaincode to the server
   copy:
     src: "{{ playbook_dir }}/fabricsetup/templates/example_cc.go"
     dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/example_cc.go"
     mode: "u=rw,g=rw"
-  when: clihost == inventory_hostname
+  when: clihost == inventory_hostname #TODO
 ###
 
 - name: Start the server
@@ -337,8 +340,14 @@
     files: 
       - server-compose.yml
     state: present
-  when: servers | length > 0
+  when: server | length > 1
   tags: "fabricup"
+
+- name: Run testAPI.sh
+  shell: 'docker exec {{ server }} bash -c "./testAPI.sh -l node"'
+  async: 120
+  poll: 0
+  when: server | length > 1
 
 
 #################################################

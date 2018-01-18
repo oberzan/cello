@@ -34,7 +34,7 @@ fabric: {
       orderers: ["orderer1.ordererorg1"],
       zookeepers: ["zookeeper1"],
       kafkas: ["kafka1"],
-      servers: ["server1"]
+      server: "server1"
     },
     fabric002: {
       cas: ["ca1.org2"],
@@ -57,6 +57,6 @@ fabric: {
   ca: { tag: "1.1.0-preview", admin: "admin", adminpw: "adminpw" },
 
   # Composer settings
-  composer_tag: "0.16.1",
+  composer_tag: "0.17.0",
   nodejs_version: "8.9.3"
 }

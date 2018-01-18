@@ -29,12 +29,12 @@
     - include: "fabricsetup/tasks/{{ mode }}.yml"
   tags: "fabricsetup"
 
-# - name: setup composer
-#   hosts: composer
-#   gather_facts: true
-#   user: "{{ fabric.ssh_user }}"
-#   vars_files:
-#     - "./../../vars/{{ env }}.yml"
-#   tasks:
-#     - include: "composersetup/tasks/{{ mode }}.yml"
-#   tags: "composersetup"
+- name: setup composer
+  hosts: composer
+  gather_facts: true
+  user: "{{ fabric.ssh_user }}"
+  vars_files:
+    - "./../../vars/{{ env }}.yml"
+  tasks:
+    - include: "composersetup/tasks/{{ mode }}.yml"
+  tags: "composersetup"

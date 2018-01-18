@@ -34,8 +34,3 @@
     - ['net-tools', 'netcat-openbsd', 'autoconf', 'automake']
     - ['make', 'g++', 'unzip', 'build-essential']
 
-- name: Fix up the search domain
-  lineinfile:
-    path: /etc/resolvconf/resolv.conf.d/base
-    state: present
-    line: search {{ cluster.domain | default('fabric') }}

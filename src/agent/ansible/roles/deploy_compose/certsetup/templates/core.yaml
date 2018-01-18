@@ -1,12 +1,14 @@
 ---
 logging:
-    peer:       info
+    level:       info
     cauthdsl:   warning
     gossip:     warning
     ledger:     info
     msp:        warning
     policies:   warning
     grpc:       error
+    peer:
+        gossip: warning
 
     format: '%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}'
 
@@ -17,6 +19,8 @@ peer:
     gomaxprocs: -1
     gossip:
         bootstrap: 127.0.0.1:7051
+        useLeaderElection: true
+        orgLeader: false
 
         endpoint:
         maxBlockCountToStore: 100
@@ -34,7 +38,7 @@ peer:
         dialTimeout: 3s
         connTimeout: 2s
         recvBuffSize: 20
-        sendBuffSize: 20
+        sendBuffSize: 200
         digestWaitTime: 1s
         requestWaitTime: 1s
         responseWaitTime: 2s
@@ -47,20 +51,30 @@ peer:
             membershipSampleInterval: 1s
             leaderAliveThreshold: 10s
             leaderElectionDuration: 5s
+        pvtData:
+            pullRetryThreshold: 60s
+            minPeers: 1
+            maxPeers: 1
+            transientstoreMaxBlockRetention: 1000
 
     events:
         address: 0.0.0.0:7053
         buffersize: 100
         timeout: 10ms
+        timewindow: 15m
 
     tls:
         enabled:  false
+        clientAuthRequired: false
         cert:
             file: tls/server.crt
         key:
             file: tls/server.key
         rootcert:
             file: tls/ca.crt
+        clientRootCAs:
+            files:
+              - tls/ca.crt
 
         serverhostoverride:
 
@@ -75,10 +89,22 @@ peer:
                 KeyStore:
 
     mspConfigPath: msp
-
+    localMspId: DEFAULT
+    deliveryclient:
+        reconnectTotalTimeThreshold: 3600s
     profile:
         enabled:     false
         listenAddress: 0.0.0.0:6060
+
+    handlers:
+        authFilters:
+          -
+            name: DefaultAuth
+        decorators:
+          -
+            name: DefaultDecorator
+
+    validatorPoolSize:
 
 vm:
     endpoint: unix:///var/run/docker.sock
@@ -120,6 +146,8 @@ chaincode:
     java:
         Dockerfile:  |
             from $(DOCKER_NS)/fabric-javaenv:$(ARCH)-$(PROJECT_VERSION)
+    node:
+        runtime: $(BASE_DOCKER_NS)/fabric-baseimage:$(ARCH)-$(BASE_VERSION)
     startuptimeout: 300s
     executetimeout: 30s
     mode: net
@@ -131,7 +159,8 @@ chaincode:
         escc: enable
         vscc: enable
         qscc: enable
-
+        rscc: disable
+        
     logging:
       level:  info
       shim:   warning
@@ -151,6 +180,18 @@ ledger:
        maxRetriesOnStartup: 10
        requestTimeout: 35s
        queryLimit: 10000
+       maxBatchUpdateSize: 1000
 
   history:
     enableHistoryDatabase: true
+
+metrics:
+    enabled: false
+    reporter: statsd
+    interval: 1s
+    statsdReporter:
+        address: 0.0.0.0:8125
+        flushInterval: 2s
+        flushBytes: 1432
+    promReporter:
+        listenAddress: 0.0.0.0:8080
