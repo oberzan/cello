@@ -78,14 +78,14 @@
   args:
     warn: no
 
-- name: Set node source
+- name: Install node
   environment:
     NVM_DIR: /home/{{ fabric.ssh_user }}/.nvm
   shell: |
     . "$NVM_DIR/nvm.sh"
     . "$NVM_DIR/bash_completion"
-    nvm install 8
-    nvm use 8
+    nvm install 8.9.4
+    nvm use 8.9.4
   args:
     executable: /bin/bash
   no_log: true
@@ -98,7 +98,7 @@
 - name: Install composer npm packages globally.
   environment:
     NVM_DIR: ~/.nvm
-    PATH: ~/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+    PATH: ~/.nvm/versions/node/v8.9.4/bin:{{ ansible_env.PATH }}
   npm:
     name: "{{ item }}"
     version: "{{ fabric.composer_tag }}"
@@ -116,7 +116,7 @@
 
 - name: Install "yo" node.js package globally.
   environment:
-    PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.3/bin:{{ ansible_env.PATH }}
+    PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.4/bin:{{ ansible_env.PATH }}
   npm:
     name: yo
     version: '2.0.0'
