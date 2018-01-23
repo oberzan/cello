@@ -187,7 +187,7 @@
   vars:
     DEBUG: "composer:*"
   shell: 
-    composer runtime install -c PeerAdmin@{{ env }}-{{ item }} -n test-network
+    composer runtime install -c PeerAdmin@{{ env }}-{{ item }} -n marbles-network
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"
@@ -217,20 +217,17 @@
 
 - name: Copy empty-network .bna folder
   copy:
-    src: "{{ playbook_dir }}/composersetup/files/test-network@0.0.1.bna"
+    src: "{{ playbook_dir }}/composersetup/files/marbles-network.bna"
     dest: "{{ fabricworkdir }}/run/composer/"
+
+- set_fact:
+    create_cmd: "{{ create_cmd | default('composer network start --card PeerAdmin@' + env + '-' + peerorgs.0 + ' --archiveFile marbles-network.bna') + ' --networkAdmin user-' + item + ' --networkAdminCertificateFile user-' + item + '/admin-pub.pem' }}"
+  with_items: "{{ peerorgs }}"
 
 - name: Composer network start
   vars:
     DEBUG: "composer:*"
-  shell:
-    composer network start 
-      --card PeerAdmin@{{ env }}-{{ peerorgs.0 }}
-      --archiveFile test-network@0.0.1.bna
-      --networkAdmin user-{{ peerorgs.0 }}
-      --networkAdminCertificateFile user-{{ peerorgs.0 }}/admin-pub.pem
-      #--networkAdmin bob
-      #--networkAdminEnrollSecret bob/admin-pub.pem
+  shell: "{{ create_cmd }}"
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
 
@@ -242,7 +239,7 @@
     composer card create 
       -p connection-{{ item }}.yml 
       -u {{ user }} 
-      -n test-network 
+      -n marbles-network 
       -c {{ user }}/admin-pub.pem 
       -k {{ user }}/admin-priv.pem
   args:
@@ -253,7 +250,7 @@
   vars:
     DEBUG: "composer:*"
   shell:
-    composer card import -f user-{{ item }}@test-network.card
+    composer card import -f user-{{ item }}@marbles-network.card
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"

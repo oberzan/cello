@@ -25,6 +25,6 @@
 
 - name: Delete network users' card
   shell:
-    composer card delete -n user-{{ item }}@test-network
+    composer card delete -n user-{{ item }}@marbles-network
   with_items: "{{ peerorgs }}"
   ignore_errors: true

@@ -15,6 +15,7 @@ services:
       - HFC_LOGGING={"debug":"console"}
     working_dir: /app
     command: bash -c 'chmod +100 testAPI.sh;
+                      npm install;
                       node app & wait $$!'
     ports:
       - 4000:4000
