@@ -5,16 +5,18 @@ registry:
 
   # Contains identity information which is used when LDAP is disabled
   identities:
-     - name: {{ fabric.ca.admin }}
-       pass: {{ fabric.ca.adminpw }}
-       type: client
-       affiliation: ""
-       maxenrollments: -1
-       attrs:
-          hf.Registrar.Roles: "client,user,peer,validator,auditor"
-          hf.Registrar.DelegateRoles: "client,user,validator,auditor"
-          hf.Revoker: true
-          hf.IntermediateCA: true
+    - name: {{ fabric.ca.admin }}
+      pass: {{ fabric.ca.adminpw }}
+      type: client
+      affiliation: ""
+      maxenrollments: -1
+      attrs:
+        hf.Registrar.Roles: "client,user,peer,validator,auditor"
+        hf.Registrar.DelegateRoles: "client,user,validator,auditor"
+        hf.Revoker: true
+        hf.IntermediateCA: true
+        hf.GenCRL: true
+        hf.Registrar.Attributes: "*"
 
 ldap:
   enabled: false
@@ -23,3 +25,50 @@ affiliations:
    {{ item.org }}:
       - department1
       - department2
+
+signing:
+  default:
+    usage:
+      - digital signature
+    expiry: 8760h
+  profiles:
+    ca:
+      usage:
+        - cert sign
+      expiry: 43800h
+      caconstraint:
+        isca: true
+        maxpathlen: 0
+    tls:
+      usage:
+        - signing
+        - key encipherment
+        - server auth
+        - client auth
+        - key agreement
+      expiry: 8760h
+
+csr:
+  cn: fabric-ca-server
+  names:
+  - C: US
+    ST: "North Carolina"
+    L:
+    O: Hyperledger
+    OU: Fabric
+  hosts:
+  - ca1.{{ item.org }}
+  - localhost
+  ca:
+  expiry: 131400h
+  pathlength: 1
+
+
+bccsp:
+  default: SW
+  sw:
+    hash: SHA2
+    security: 256
+    filekeystore:
+      # The directory used for the software file-based keystore
+      keystore: msp/keystore

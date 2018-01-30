@@ -5,7 +5,7 @@ GIT_URL: "http://gerrit.hyperledger.org/r/fabric"
 # The gerrit patch set reference, should be automatically set by gerrit
 #GERRIT_REFSPEC: "refs/tags/v1.0.5" # 1.0.5
 #GERRIT_REFSPEC: '' # Head
-GERRIT_REFSPEC: "refs/tags/v1.1.0-preview"
+GERRIT_REFSPEC: "refs/tags/v1.1.0-alpha"
 
 # This variable defines fabric network attributes
 fabric: {
@@ -52,11 +52,11 @@ fabric: {
     }
   },
 
-  tag: "1.1.0-preview",
-  baseimage_tag: "0.4.2",
-  ca: { tag: "1.1.0-preview", admin: "admin", adminpw: "adminpw" },
+  tag: "1.1.0-alpha",
+  baseimage_tag: "0.4.5",
+  ca: { tag: "1.1.0-alpha", admin: "admin", adminpw: "adminpw" },
 
   # Composer settings
-  composer_tag: "0.17.0",
-  nodejs_version: "8.9.3"
+  composer_tag: "0.17.2",
+  nodejs_version: "8.9.4"
 }

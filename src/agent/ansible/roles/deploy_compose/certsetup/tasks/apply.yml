@@ -106,7 +106,7 @@
 - name: Create core.yml file for every peer
   template:
     src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/core.j2"
-    dest: "{{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}.{{ item.org }}/core.yaml"
+    dest: "{{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}/core.yaml"
   with_items: "{{ peers }}"
 
 - name: Create config tx file

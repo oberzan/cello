@@ -228,11 +228,12 @@
   with_items:
     - "hyperledger/fabric-tools:{{ thetag }}"
     - "hyperledger/fabric-ccenv:{{ thetag }}"
-    - "hyperledger/fabric-kafka:{{ thetag }}"
-    - "hyperledger/fabric-zookeeper:{{ thetag }}"
+    - "hyperledger/fabric-kafka:{{ baseimagetag }}"
+    - "hyperledger/fabric-zookeeper:{{ baseimagetag }}"
     - "hyperledger/fabric-peer:{{ thetag }}"
+    - "hyperledger/fabric-ca:{{ thetag }}"
     - "hyperledger/fabric-orderer:{{ thetag }}"
-    - "hyperledger/fabric-couchdb:{{ thetag }}"
+    - "hyperledger/fabric-couchdb:{{ baseimagetag }}"
     - "hyperledger/fabric-baseimage:{{ baseimagetag }}"
     - "hyperledger/fabric-baseos:{{ baseimagetag }}"
     - "node:8.9"
@@ -261,6 +262,18 @@
     - { name: "peer-compose", flag: "{{ peers }}" }
   tags: "fabricup"
 #####################################################################
+# - name: enroll CA admin
+#   command: "docker exec {{ item.name }} fabric-ca-client enroll -u http://admin:adminpw@{{ item.name }}:7054"
+#   with_items: "{{ cas }}"
+
+# - name: Register TLSCA certificates
+#   command: "docker exec {{ item.name }} fabric-ca-client register --caname {{ item.name }} --enrollment.profile tls --id.name {{ item.name }} --id.secret pw"
+#   with_items: "{{ cas }}"
+
+# - name: Generate CA's TLS certificate
+#   command: "docker exec {{ item.name }} fabric-ca-client enroll -u http://{{ item.name }}:pw@localhost:7054 --enrollment.profile tls --csr.cn {{ item.name }} --csr.hosts {{ item.name }} --caname {{ item.name }}" 
+#   with_items: "{{ cas }}"
+# sed -i -e 's/FABRIC_CA_SERVER_TLS_ENABLED=false/FABRIC_CA_SERVER_TLS_ENABLED=true/g' {{ fabricworkdir }}/run/ca-compose.yml
 
 - name: Locate a host to run peer channel create command
   set_fact:

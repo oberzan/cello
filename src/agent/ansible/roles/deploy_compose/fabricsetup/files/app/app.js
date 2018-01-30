@@ -134,12 +134,14 @@ app.post('/users', async function(req, res) {
 		orgName: orgName
 	}, app.get('secret'));
 
-  	let response = await helper.getRegisteredUser(username, orgName, true);	
+	let response = await helper.getRegisteredUser(username, orgName, true);
+	logger.debug('-- returned from registering the username %s for organization %s',username,orgName);  
 	if (response && typeof response !== 'string') {
-		logger.debug('Successfully returned from registering the username %s for organization %s',username,orgName);
+		logger.debug('Successfully registered the username %s for organization %s',username,orgName);
 		response.token = token;
 		res.json(response);
 	} else {
+		logger.debug('Failed to register the username %s for organization %s with::%s',username,orgName,response);
 		res.json({success: false, message: response});
 	}
 
@@ -327,16 +329,18 @@ app.post('/chaincodes', async function(req, res) {
 // Instantiate chaincode on target peers
 app.post('/channels/:channelName/chaincodes', async function(req, res) {
 	logger.info('==================== INSTANTIATE CHAINCODE ==================');
+	var peers = req.body.peers;
 	var chaincodeName = req.body.chaincodeName;
 	var chaincodeVersion = req.body.chaincodeVersion;
 	var channelName = req.params.channelName;
   	var chaincodeType = req.body.chaincodeType;
 	var fcn = req.body.fcn;
 	var args = req.body.args;
+	logger.debug('peers  : ' + peers);
 	logger.debug('channelName  : ' + channelName);
 	logger.debug('chaincodeName : ' + chaincodeName);
 	logger.debug('chaincodeVersion  : ' + chaincodeVersion);
-  logger.debug('chaincodeType  : ' + chaincodeType);
+  	logger.debug('chaincodeType  : ' + chaincodeType);
 	logger.debug('fcn  : ' + fcn);
 	logger.debug('args  : ' + args);
 	if (!chaincodeName) {
@@ -351,7 +355,7 @@ app.post('/channels/:channelName/chaincodes', async function(req, res) {
 		res.json(getErrorMessage('\'channelName\''));
 		return;
 	}
-  if (!chaincodeType) {
+  	if (!chaincodeType) {
 		res.json(getErrorMessage('\'chaincodeType\''));
 		return;
 	}
@@ -360,8 +364,8 @@ app.post('/channels/:channelName/chaincodes', async function(req, res) {
 		return;
 	}
 
-  let message = await instantiate.instantiateChaincode(channelName, chaincodeName, chaincodeVersion, chaincodeType, fcn, args, req.username, req.orgname);
-  res.send(message);
+	let message = await instantiate.instantiateChaincode(peers, channelName, chaincodeName, chaincodeVersion, chaincodeType, fcn, args, req.username, req.orgname);
+  	res.send(message);
 });
 // Invoke transaction on chaincode on target peers
 app.post('/channels/:channelName/chaincodes/:chaincodeName', async function(req, res) {

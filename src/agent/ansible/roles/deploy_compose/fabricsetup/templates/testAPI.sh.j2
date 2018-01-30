@@ -81,15 +81,16 @@ function main {
   }'
   echo
 
-  echo "POST invoke chaincode on all peers"
+  echo "POST invoke chaincode on all peers" #TODO
   echo
   TRX_ID=$(curl -s -X POST \
     http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc \
     -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
-    "fcn":"move",
-    "args":["a","b","10"]
+      "peers": ["peer1.org1","peer2.org1"],
+      "fcn":"move",
+      "args":["a","b","10"]
   }')
   echo "Transacton ID is $TRX_ID"
   echo

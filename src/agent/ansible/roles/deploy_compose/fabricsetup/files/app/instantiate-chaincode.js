@@ -21,7 +21,7 @@ var hfc = require('fabric-client');
 var helper = require('./helper.js');
 var logger = helper.getLogger('instantiate-chaincode');
 
-var instantiateChaincode = async function(channelName, chaincodeName, chaincodeVersion, chaincodeType, functionName, args, username, org_name) {
+var instantiateChaincode = async function(peers, channelName, chaincodeName, chaincodeVersion, functionName, chaincodeType, args, username, org_name) {
 	logger.debug('\n\n============ Instantiate chaincode on channel ' + channelName +
 		' ============\n');
 	var error_message = null;
@@ -45,6 +45,7 @@ var instantiateChaincode = async function(channelName, chaincodeName, chaincodeV
 
 		// send proposal to endorser
 		var request = {
+			targets : peers,
 			chaincodeId: chaincodeName,
 			chaincodeType: chaincodeType,
 			chaincodeVersion: chaincodeVersion,
@@ -132,7 +133,7 @@ var instantiateChaincode = async function(channelName, chaincodeName, chaincodeV
 			});
 
 			var orderer_request = {
-				txId: tx_id, //must includethe transaction id so that the outbound
+				txId: tx_id, //must include the transaction id so that the outbound
 				             // transaction to the orderer will be signed by the admin
 							 // id as was the proposal above, notice that transactionID
 							 // generated above was based on the admin id not userContext.

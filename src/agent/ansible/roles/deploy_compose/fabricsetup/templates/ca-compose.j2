@@ -12,10 +12,13 @@ services:
     environment:
       - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server-config/ca
       - FABRIC_CA_SERVER_CA_NAME={{ ca.name }}
-      - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/ca/{{ cakeys[ca.org+'_ca'] }}
+      #- FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/tls{{ ca.name }}-cert.pem
+      #- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/{{ cakeys[ca.org+'_tlsca'] }}
       - FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca/{{ ca.name }}-cert.pem
+      - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/ca/{{ cakeys[ca.org+'_ca'] }}
 {% if fabric.tls %}
       - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/fabric-ca-server-config/tlsca/tls{{ ca.name }}-cert.pem
       - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/{{ cakeys[ca.org+'_tlsca'] }}
       - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/tlsca/tls{{ ca.name }}-cert.pem
 {% endif %}
