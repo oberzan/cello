@@ -5,7 +5,7 @@ services:
 
   fabriccli:
     container_name: cli
-    image: hyperledger/fabric-tools:{{ full_tag }}
+    image: {{ fabric.repo.url }}fabric-tools:{{ full_tag }}
     network_mode: bridge
     hostname: fabriccli
     environment:

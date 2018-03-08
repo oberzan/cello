@@ -1,14 +1,9 @@
 ---
-- name: Figuring out the server architecture
-  shell: uname -m
-  register: rawarch
-
 - name: Setup and initialize variables
   set_fact:
     current_host: "{{ hostvars[inventory_hostname].inter_name }}"
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
     gopath: "/opt/gopath/{{ env }}"
-    arch: "{{ rawarch.stdout}}"
     peers: "{{ [] }}"
     orderers: "{{ [] }}"
     cas: "{{ [] }}"
@@ -154,10 +149,10 @@
     "{{ fabricworkdir }}/VERSION"
   when: fabric.tag == ''
 
-- name: Load all the docker images created by build machine
-  shell: >-
-    docker load -i {{ fabricworkdir }}/fabricimages.tar
-  when: fabric.tag == '' and inventory_hostname not in groups['builders']
+#- name: Load all the docker images created by build machine
+#  shell: >-
+#    docker load -i {{ fabricworkdir }}/fabricimages.tar
+#  when: fabric.tag == '' and inventory_hostname not in groups['builders']
 
 - name: Find out the image tags
   slurp:
@@ -165,7 +160,7 @@
   register: project_version
   when: fabric.tag == ''
 
-- name: Set the container tag
+- name: Set image tag from the file
   set_fact:
     full_tag: "{{ arch + '-' + (project_version['content'] | b64decode) }}"
   when: fabric.tag == ''
@@ -212,8 +207,15 @@
     - start-orderer
     - start-peer
 
+- name: Login to docker repo
+  command: "docker login {{ fabric.repo.url }} -u {{ fabric.repo.username }} -p {{ fabric.repo.password }}"
+  when: >
+    fabric.tag | length > 0 and
+    fabric.repo.username | default("") | length > 0 and
+    fabric.repo.password | default("") | length > 0
+
 - name: Pull container images from the docker hub
-  command: "docker pull {{ item }}"
+  command: "docker pull {{ fabric.repo.url }}{{ item }}"
   when: fabric.tag | length > 0
   with_items:
     - "hyperledger/fabric-tools:{{ full_tag }}"
@@ -225,7 +227,8 @@
     - "hyperledger/fabric-couchdb:{{ baseimagetag }}"
     - "hyperledger/fabric-baseimage:{{ baseimagetag }}"
     - "hyperledger/fabric-baseos:{{ baseimagetag }}"
-    - "node:8.9"
+    #- "node:8.9"
+  tags: "pullimages"
 
 - name: Create docker compose files
   template:

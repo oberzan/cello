@@ -1,5 +1,0 @@
-FROM _DOCKER_BASE_
-COPY baseimage /tmp/baseimage
-RUN cd /tmp/baseimage && \
-    bash install.sh && \
-rm -rf /tmp/baseimage

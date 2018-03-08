@@ -17,6 +17,7 @@ fabric: {
   # options are "goleveldb", "CouchDB", default is goleveldb
   peer_db: "CouchDB",
   tls: true,
+  logging_level: "DEBUG",
 
   # The following section defines how the fabric network is going to be made up
   # cas indicates certificate authority containers
@@ -55,9 +56,22 @@ fabric: {
 
   tag: "1.1.0-rc1",
   baseimage_tag: "0.4.6",
-  #ca: { tag: "1.1.0-alpha", admin: "admin", adminpw: "adminpw" },
 
   # Composer settings
   composer_tag: "0.18.0",
-  nodejs_version: "8.9.4"
+  nodejs_version: "8.9.4",
+
+  repo: {
+    # the url defines docker hub project access point
+    # official hub - url: "hyperledger/",
+    # fabric build hub - url: "nexus3.hyperledger.org:10001/hyperledger/",
+    url: "hyperledger/",
+    #username: "",
+    #password: "",
+
+    # locations to download fabric binaries. This url should point to a
+    # compressed such as tar or zip file which contains necessary binaries
+    # such as configtxgen, configtxlator, cryptogen etc.
+    #bin: ""
+  }
 }

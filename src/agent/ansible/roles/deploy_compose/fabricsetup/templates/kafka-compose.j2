@@ -6,7 +6,7 @@ services:
 {% for kafka in kafkas %}
   {{ kafka }}:
     container_name: {{ kafka }}
-    image: hyperledger/fabric-kafka:x86_64-0.4.6
+    image: {{ baseimagetag }}fabric-kafka:{{ baseimagetag }}
     restart: always
     network_mode: bridge
     hostname: {{ kafka }}

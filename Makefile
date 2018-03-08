@@ -7,11 +7,13 @@
 # This makefile defines the following targets
 #
 #   - all (default):  Builds all targets and runs all tests/checks
-#   - checks:         Setup as master node, and runs all tests/checks, will be triggered by CI
+#   - check:          Setup as master node, and runs all tests/checks, will be triggered by CI
 #   - clean:          Cleans the build area
 #   - doc:            Start a local web service to explore the documentation
 #   - docker[-clean]: Build/clean docker images locally
-#	- license:		  checks sourrce files for Apache license header
+#   - dockerhub:      Build using dockerhub materials, to verify them
+#   - dockerhub-pull: Pulling service images from dockerhub
+#   - license:		    Checks sourrce files for Apache license header
 #   - help:           Output the help instructions for each command
 #   - log:            Check the recent log output of all services
 #   - restart:        Stop the cello service and then start
@@ -27,12 +29,12 @@ RESET  := $(shell tput -Txterm sgr0)
 ARCH   := $(shell uname -m)
 
 # changelog specific version tags
-PREV_VERSION=0.7
+PREV_VERSION?=0.8.0-beta
 
 # Building image usage
 DOCKER_NS ?= hyperledger
 BASENAME ?= $(DOCKER_NS)/cello
-VERSION ?= 0.8.0
+VERSION ?= 0.8.0-rc1
 IS_RELEASE=false
 
 DOCKER_BASE_x86_64=ubuntu:xenial
@@ -61,7 +63,7 @@ SLASH:=/
 REPLACE_SLASH:=\/
 
 -include .makerc/email
--include .makerc/admin-dashboard
+-include .makerc/operator-dashboard
 -include .makerc/user-dashboard
 
 export ROOT_PATH = ${PWD}
@@ -94,7 +96,6 @@ else
 	START_OPTIONS = initial-env $(BUILD_JS)
 endif
 
-
 all: check
 
 build/docker/baseimage/$(DUMMY): build/docker/baseimage/$(DUMMY)
@@ -106,7 +107,7 @@ build/docker/%/$(DUMMY): ##@Build an image locally
 	$(eval IMG_NAME = $(BASENAME)-$(TARGET))
 	@mkdir -p $(@D)
 	@echo "Building docker $(TARGET)"
-	@cat config/$(TARGET)/Dockerfile.in \
+	@cat docker/$(TARGET)/Dockerfile.in \
 		| sed -e 's|_DOCKER_BASE_|$(DOCKER_BASE)|g' \
 		| sed -e 's|_NS_|$(DOCKER_NS)|g' \
 		| sed -e 's|_TAG_|$(IMG_TAG)|g' \
@@ -127,17 +128,33 @@ docker: $(patsubst %,build/docker/%/$(DUMMY),$(DOCKER_IMAGES)) ##@Generate docke
 
 docker-clean: image-clean ##@Clean all existing images
 
-.PHONY: license
+DOCKERHUB_IMAGES = baseimage engine mongo nginx operator-dashboard user-dashboard watchdog
+
+dockerhub: $(patsubst %,dockerhub-%,$(DOCKERHUB_IMAGES))  ##@Building latest images with dockerhub materials, to valid them
+
+dockerhub-%: ##@Building latest images with dockerhub materials, to valid them
+	dir=$*; \
+	IMG=hyperledger/cello-$$dir; \
+	echo "Building $$IMG"; \
+	docker build \
+	-t $$IMG \
+	-t $$IMG:x86_64-latest \
+	dockerhub/latest/$$dir
+
+dockerhub-pull: ##@Pull service images from dockerhub
+	cd scripts/master_node && bash download_images.sh
+
 license:
 	bash scripts/check_license.sh
 
 install: $(patsubst %,build/docker/%/.push,$(DOCKER_IMAGES))
 
 check: setup-master ##@Code Check code format
+	@$(MAKE) license
+	find ./docs -type f -name "*.md" -exec egrep -l " +$$" {} \;
 	tox
-#	@$(MAKE) license
 	@$(MAKE) test-case
-	make start && sleep 10 && make stop
+	make start && sleep 60 && make stop
 
 test-case: ##@Code Run test case for flask server
 	@$(MAKE) -C test/ all
@@ -190,11 +207,11 @@ initial-env: ##@Configuration Initial Configuration for dashboard
 start: ##@Service Start service
 	@$(MAKE) $(START_OPTIONS)
 	echo "Start all services... docker images must exist local now, otherwise, run 'make setup-master first' !"
-	docker-compose up -d --no-recreate
+	docker-compose -f ${DEPLOY_COMPOSE_FILE} up -d --no-recreate
 
 stop: ##@Service Stop service
 	echo "Stop all services..."
-	docker-compose stop
+	docker-compose -f ${DEPLOY_COMPOSE_FILE} stop
 	echo "Remove all services..."
 	docker-compose rm -f -a
 
@@ -236,20 +253,20 @@ HELP_FUN = \
 	print "\n"; }
 
 .PHONY: \
-	all \          # default to run check
-	check \        # ci checking
-	clean \        # clean up the env, remove temp files
-	changelog \    # update the changelog based on the VERSION tags
-	doc \          # start a doc server locally
-	image-clean \  # clean up all cello related images
-	log \          # show logs of specify service
-	logs \         # show logs of all services
-	setup-master \ # setup the master node
-	setup-worker \ # setup the worker node
-	redeploy \     # redeploy service(s)
-	start \        # start all services
-	restart \      # restart all services
-	stop \         # stop all services
-	docker \       # create docker image
-	license \	   # check for Apache license header
-
+	all \
+	check \
+	clean \
+	changelog \
+	doc \
+	docker \
+	dockerhub \
+	docker-clean \
+	license \
+	log \
+	logs \
+	restart \
+	setup-master \
+	setup-worker \
+	redeploy \
+	start \
+	stop

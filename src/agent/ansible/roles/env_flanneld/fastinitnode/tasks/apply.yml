@@ -3,11 +3,16 @@
   shell: uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'
   register: rawarch
 
+- name: Figuring out the OS release
+  shell: lsb_release -cs
+  register: rawrelease
+
 - name: Setup variables
   set_fact:
     goroot: "/opt/go"
     gopath: "/opt/gopath"
     arch: "{{ rawarch.stdout}}"
+    osrelease: "{{ rawrelease.stdout }}"
 
 - name: Ensure gopath exists
   file:
@@ -25,7 +30,7 @@
 - include_tasks: setup-Debian.yml
   when: ansible_os_family == 'Debian'
 
-- name: Install pip and upgrade
+- name: Install python packages
   pip:
     name: "{{ item.name}}"
     extra_args: "{{ item.args | default('') }}"
@@ -46,7 +51,7 @@
 
 - name: Retrive golang binary and unpackage it
   unarchive:
-    src: "https://storage.googleapis.com/golang/go{{ cluster.go_ver }}.linux-{{ arch }}.tar.gz"
+    src: "{{ cluster.go_repo }}"
     dest: "/opt"
     remote_src: True
 
