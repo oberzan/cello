@@ -1,6 +1,6 @@
 ---
 - name: build fabric artifacts
-  hosts: builders
+  hosts: allnodes
   gather_facts: true
   user: "{{ fabric.ssh_user }}"
   vars_files:
@@ -9,8 +9,18 @@
     - include: "fabricbuild/tasks/{{ mode }}.yml"
   tags: "fabricbuild"
 
+- name: setup fabric network
+  hosts: allnodes
+  gather_facts: false
+  user: "{{ fabric.ssh_user }}"
+  vars_files:
+    - "./../../vars/{{ env }}.yml"
+  tasks:
+    - include: "casetup/tasks/{{ mode }}.yml"
+  tags: "casetup"
+
 - name: generate certificates
-  hosts: builders
+  hosts: allnodes
   gather_facts: false
   user: "{{ fabric.ssh_user }}"
   vars_files:

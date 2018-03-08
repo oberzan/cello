@@ -1,11 +1,12 @@
 ---
 # The url to the fabric source repository
-GIT_URL: "http://gerrit.hyperledger.org/r/fabric"
+FABRIC_GIT_URL: "http://gerrit.hyperledger.org/r/fabric"
+FABRIC_CA_GIT_URL: "http://gerrit.hyperledger.org/r/fabric-ca"
 
 # The gerrit patch set reference, should be automatically set by gerrit
 #GERRIT_REFSPEC: "refs/tags/v1.0.5" # 1.0.5
 #GERRIT_REFSPEC: '' # Head
-GERRIT_REFSPEC: "refs/tags/v1.1.0-alpha"
+GERRIT_REFSPEC: "refs/tags/v1.1.0-rc1"
 
 # This variable defines fabric network attributes
 fabric: {
@@ -40,23 +41,23 @@ fabric: {
       cas: ["ca1.org2"],
       peers: ["worker@peer2.org1", "worker@peer2.org2"],
       orderers: ["orderer2.ordererorg1"],
-      zookeepers: ["zookeeper2", "zookeeper3"],
-      kafkas: ["kafka2"]
+      zookeepers: ["zookeeper2"],
+      kafkas: ["kafka2", "kafka3"]
     },
     fabric003: {
       cas: ["ca1.ordererorg2"],
       peers: ["worker@peer3.org1", "worker@peer3.org2"],
       orderers: ["orderer1.ordererorg2"],
-      zookeepers: ["zookeeper4"],
-      kafkas: ["kafka3"]
+      zookeepers: ["zookeeper3"],
+      kafkas: ["kafka4"]
     }
   },
 
-  tag: "1.1.0-alpha",
-  baseimage_tag: "0.4.5",
-  ca: { tag: "1.1.0-alpha", admin: "admin", adminpw: "adminpw" },
+  tag: "1.1.0-rc1",
+  baseimage_tag: "0.4.6",
+  #ca: { tag: "1.1.0-alpha", admin: "admin", adminpw: "adminpw" },
 
   # Composer settings
-  composer_tag: "0.17.2",
+  composer_tag: "0.18.0",
   nodejs_version: "8.9.4"
 }

@@ -251,9 +251,9 @@ app.post('/channels', async function(req, res) {
 	logger.info('<<<<<<<<<<<<<<<<< C R E A T E  C H A N N E L >>>>>>>>>>>>>>>>>');
 	logger.info('End point : /channels');
 	var channelName = req.body.channelName;
-	var channelConfigPath = path.join('/etc', 'hyperledger', 'allorgs', req.body.channelConfig);
+	var channelConfigPath = path.join('/etc', 'hyperledger', 'keyfiles', req.body.channelConfig);
 	logger.info('Channel name : ' + channelName);
-	logger.info('channelConfigPath : ' + channelConfigPath); //etc/hyperledger/allorgs/...
+	logger.info('channelConfigPath : ' + channelConfigPath); //etc/hyperledger/keyfiles/...
 	if (!channelName) {
 		res.json(getErrorMessage('\'channelName\''));
 		return;
@@ -263,7 +263,7 @@ app.post('/channels', async function(req, res) {
 		return;
 	}
 
-  let message = await createChannel.createChannel(channelName, channelConfigPath, req.username, req.orgname);
+  	let message = await createChannel.createChannel(channelName, channelConfigPath, req.username, req.orgname);
 +	res.send(message);
 });
 // Join Channel
@@ -273,8 +273,8 @@ app.post('/channels/:channelName/peers', async function(req, res) {
 	var peers = req.body.peers;
 	logger.debug('channelName : ' + channelName);
 	logger.debug('peers : ' + peers);
-  logger.info('username :' + req.username);
-  logger.info('orgname:' + req.orgname);
+  	logger.info('username :' + req.username);
+  	logger.info('orgname:' + req.orgname);
 
 	if (!channelName) {
 		res.json(getErrorMessage('\'channelName\''));

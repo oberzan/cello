@@ -1,0 +1,53 @@
+---
+- name: Figuring out the server architecture
+  shell: uname -m
+  register: rawarch
+
+- name: Setup few variables
+  set_fact:
+    cas: "{{ [] }}"
+    cals: "{{ [] }}"
+    current_host: "{{ hostvars[inventory_hostname].inter_name }}"
+    fabricworkdir: "/opt/gopath/{{ env }}/fabric"
+    full_tag: "{{ rawarch.stdout + '-' + fabric.tag }}"
+
+- name: Create component list
+  set_fact:
+    cals: "{{ cals | default([]) + item.value.cas | default([]) }}"
+  with_dict: "{{ fabric.network }}"
+
+- name: Get ca container list
+  set_fact:
+    cas: |
+      {{ cas + [{'org':item.split('.')[-1],
+        'name':item }] }}
+  with_items: "{{ fabric.network[current_host].cas | default([]) }}"
+
+- name: Make sure that working directory is clean
+  become: true
+  file:
+    path: "{{ fabricworkdir }}/run"
+    state: "absent"
+
+- name: Make sure that working directory is clean
+  file:
+    path: "{{ fabricworkdir }}/run/{{ item }}"
+    recurse: yes
+    state: "directory"
+  with_items:
+    - "keyfiles"
+    - "cas"
+
+- name: Create rca-compose files
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/casetup/templates/{{ item }}.j2"
+    dest: "{{ fabricworkdir }}/run/{{ item }}.yml"
+  with_items:
+    - "rca-compose"
+    - "ica-compose"
+
+- name: Start RCAs
+  command: "docker-compose -p {{ env }}.{{ item }} -f {{ fabricworkdir }}/run/{{ item }}.yml up -d"
+  with_items:
+    - "rca-compose"
+    - "ica-compose"

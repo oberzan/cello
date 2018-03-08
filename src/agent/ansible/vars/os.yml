@@ -35,5 +35,5 @@ cluster: {
   etcd_repo: "https://github.com/coreos/etcd/releases/download/v3.2.0/etcd-v3.2.0-linux-amd64.tar.gz",
   k8s_repo: "https://storage.googleapis.com/kubernetes-release/release/v1.7.0/bin/linux/amd64/",
 
-  go_ver: "1.8.3"
+  go_ver: "1.10"
 }

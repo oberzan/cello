@@ -1,0 +1,26 @@
+---
+version: '2'
+
+services:
+
+{% for ca in cas %}
+  rca.{{ ca.org }}:
+    container_name: rca.{{ ca.org }}
+    image: hyperledger/fabric-ca:{{ full_tag }}
+    network_mode: bridge
+    hostname: rca.{{ ca.org }}
+    environment:
+      - FABRIC_CA_SERVER_HOME=/etc/hyperledger/fabric-ca
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_CSR_CN=rca.{{ ca.org }}
+      - FABRIC_CA_SERVER_CSR_HOSTS=rca.{{ ca.org }}
+      - FABRIC_CA_SERVER_DEBUG=true
+      - TARGET_CERTFILE=/keyfiles/{{ ca.org }}-ca-cert.pem
+    volumes:
+      - {{ fabricworkdir }}/run/keyfiles/:/keyfiles
+    command: bash -c '
+              fabric-ca-server init -b rca.{{ ca.org }}.admin:adminpw -d;
+              cp $$FABRIC_CA_SERVER_HOME/ca-cert.pem $$TARGET_CERTFILE;
+              fabric-ca-server start'
+
+{% endfor %}

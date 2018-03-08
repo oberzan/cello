@@ -81,7 +81,7 @@ var getRegisteredUser = async function(username, userOrg, isJson) {
 			// user was not enrolled, so we will need an admin user object to register
 			logger.info('User %s was not enrolled, so we will need an admin user object to register',username);
 			var admins = hfc.getConfigSetting('admins');
-			let adminUserObj = await client.setUserContext({username: admins[0].username, password: admins[0].secret});
+			let adminUserObj = await client.setUserContext({username: admins[0].username+"-"+userOrg, password: admins[0].secret});
 			let caClient = client.getCertificateAuthority();
 			let secret = await caClient.register({
 				enrollmentID: username,

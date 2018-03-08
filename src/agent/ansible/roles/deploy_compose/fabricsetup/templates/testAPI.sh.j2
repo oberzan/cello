@@ -2,6 +2,8 @@
 function main {
   sleep 3
 
+  set -e
+
   {% for org in peerorgs %}
   echo "POST request Enroll on {{ org }}  ..."
   echo
@@ -18,12 +20,12 @@ function main {
   echo
   sleep 3
 
-  {% set one_peer = allpeers | first %}
+  {% set first_peer = allpeers | first %}
   echo "POST request Create channel  ..."
   echo
   curl -s -X POST \
     http://localhost:4000/channels \
-    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
+    -H "authorization: Bearer ${{ first_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
     "channelName":"{{ CHANNEL_NAME }}",
@@ -67,11 +69,11 @@ function main {
 
   sleep 3
 
-  echo "POST instantiate chaincode on {{ one_peer.hostname }} of {{ one_peer.org }}"
+  echo "POST instantiate chaincode on {{ first_peer.hostname }} of {{ first_peer.org }}"
   echo
   curl -s -X POST \
     http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes \
-    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
+    -H "authorization: Bearer ${{ first_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
     "chaincodeName":"example_cc",
@@ -85,7 +87,7 @@ function main {
   echo
   TRX_ID=$(curl -s -X POST \
     http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc \
-    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
+    -H "authorization: Bearer ${{ first_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json" \
     -d '{
       "peers": ["peer1.org1","peer2.org1"],
@@ -95,26 +97,26 @@ function main {
   echo "Transacton ID is $TRX_ID"
   echo
 
-  echo "GET query chaincode on {{ one_peer.hostname }} of {{ one_peer.org }}"
+  echo "GET query chaincode on {{ first_peer.hostname }} of {{ first_peer.org }}"
   echo
   curl -s -X GET \
-    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc?peer={{ one_peer.hostname }}.{{ one_peer.org }}&fcn=query&args=%5B%22a%22%5D" \
-    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
+    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/chaincodes/example_cc?peer={{ first_peer.hostname }}.{{ first_peer.org }}&fcn=query&args=%5B%22a%22%5D" \
+    -H "authorization: Bearer ${{ first_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
 
   echo "GET query Block by blockNumber"
   echo
   curl -s -X GET \
-    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/blocks/1?peer={{ one_peer.hostname }}.{{ one_peer.org }}" \
-    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
+    "http://localhost:4000/channels/{{ CHANNEL_NAME }}/blocks/1?peer={{ first_peer.hostname }}.{{ first_peer.org }}" \
+    -H "authorization: Bearer ${{ first_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
 
   echo "GET query Transaction by TransactionID"
   echo
-  curl -s -X GET http://localhost:4000/channels/{{ CHANNEL_NAME }}/transactions/$TRX_ID?peer={{ one_peer.hostname }}.{{ one_peer.org }} \
-    -H "authorization: Bearer ${{ one_peer.org|upper }}_TOKEN" \
+  curl -s -X GET http://localhost:4000/channels/{{ CHANNEL_NAME }}/transactions/$TRX_ID?peer={{ first_peer.hostname }}.{{ first_peer.org }} \
+    -H "authorization: Bearer ${{ first_peer.org|upper }}_TOKEN" \
     -H "content-type: application/json"
   echo
 

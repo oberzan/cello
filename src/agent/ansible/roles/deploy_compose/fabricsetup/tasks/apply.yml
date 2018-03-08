@@ -27,34 +27,25 @@
     peerls: "{{ [] }}"
     ordererls: "{{ [] }}"
     cals: "{{ [] }}"
+    allcas: "{{ [] }}"
     allpeers: "{{ [] }}"
+    allorderers: "{{ [] }}"
     clihost: ""
     filterstr: ""
-    thetag: "{{ rawarch.stdout + '-' + fabric.tag }}"
+    full_tag: "{{ rawarch.stdout + '-' + fabric.tag }}"
     baseimagetag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
-    catag: "{{ rawarch.stdout + '-' + fabric.ca.tag }}"
 
 - set_fact:
     server: "{{ fabric.network[current_host].server | default([]) }}"
-
-- name: Make sure that working directory is clean
-  become: true
-  file:
-    path: "{{ fabricworkdir }}/run"
-    state: "absent"
-
-- name: Make sure that working directory is clean
-  file:
-    path: "{{ fabricworkdir }}/run"
-    state: "directory"
+    keyfilesdir: "{{ fabricworkdir }}/run/keyfiles"
 
 - name: Create component list
   set_fact:
-    cals: "{{ cals | default([]) + item.value.cas | default([]) }}"
-    ordererls: "{{ ordererls | default([]) + item.value.orderers | default([]) }}"
-    peerls: "{{ peerls | default([]) + item.value.peers | default([]) }}"
-    zookeeperls: "{{ zookeeperls | default([]) + item.value.zookeepers | default([]) }}"
-    kafkals: "{{ kafkals | default([]) + item.value.kafkas | default([]) }}"
+    cals: "{{ cals + item.value.cas | default([]) }}"
+    ordererls: "{{ ordererls + item.value.orderers | default([]) }}"
+    peerls: "{{ peerls + item.value.peers | default([]) }}"
+    zookeeperls: "{{ zookeeperls + item.value.zookeepers | default([]) }}"
+    kafkals: "{{ kafkals + item.value.kafkas | default([]) }}"
   with_dict: "{{ fabric.network }}"
 
 - name: Sort component list
@@ -68,7 +59,7 @@
     zkparam: "{{ zkparam + item }}:2181 "
     zoo_ids: "{{ zoo_ids | combine({item: index}) }}"
     index: "{{ index | int + 1 }}"
-  with_items: "{{ zookeeperls | default([]) }}"
+  with_items: "{{ zookeeperls }}"
 
 - name: Reset the index
   set_fact:
@@ -78,12 +69,12 @@
   set_fact:
     kafka_ids: "{{ kafka_ids | combine({item: index}) }}"
     index: "{{ index | int + 1 }}"
-  with_items: "{{ kafkals | default([]) }}"
+  with_items: "{{ kafkals }}"
 
 - name: Get all peer object list
   set_fact:
     allpeers: |
-      {{ allpeers | default([]) + [{'org':item.split('@')[1].split('.')[-1],
+      {{ allpeers + [{'org':item.split('@')[1].split('.')[-1],
         'hostname':item.split('@')[1].split('.')[0],
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
@@ -92,21 +83,22 @@
 - name: Get all ca object list
   set_fact:
     allcas: |
-      {{ allcas | default([]) + [{ 'org':item.split('.')[-1],
+      {{ allcas + [{ 'org':item.split('.')[-1],
         'name':item }] }}
   with_items: "{{ cals }}"
 
 - name: Get all orderer object list
   set_fact:
     allorderers: |
-      {{ allorderers | default([]) + [{ 'org':item.split('.')[-1],
-        'name':item }] }}
+      {{ allorderers + [{ 'org':item.split('.')[-1],
+                          'name':item }] }}
   with_items: "{{ ordererls }}"
 
 - name: Get peer container list
   set_fact:
     peers: |
       {{ peers + [{'org':item.split('@')[1].split('.')[-1],
+        'hostname':item.split('@')[1].split('.')[0],
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ fabric.network[current_host].peers | default([]) }}"
@@ -130,11 +122,23 @@
     zookeepers: "{{ fabric.network[current_host].zookeepers | default([]) }}"
     kafkas: "{{ fabric.network[current_host].kafkas | default([]) }}"
 
-- name: Pull certificates from the builder machine
-  command: >-
-    scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
-    ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/certs.tgz"
-    "{{ fabricworkdir }}/allcerts.tgz"
+- name: Get the peer org list
+  set_fact:
+    peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
+
+- name: Get all peer orgs
+  set_fact:
+    orgmembers: "{{ peers | map(attribute='org') | list  | unique | sort | join(\".member' '\") | trim | replace(' ', ',') }}"
+
+# - name: Pull certificates from the builder machine
+#   command: >-
+#     scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
+#     ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/certs.tgz"
+#     "{{ fabricworkdir }}/allcerts.tgz"
+
+
+
+  #####
 
 - name: Pull container images from the builder machine
   command: >-
@@ -163,29 +167,13 @@
 
 - name: Set the container tag
   set_fact:
-    thetag: "{{ arch + '-' + (project_version['content'] | b64decode) }}"
+    full_tag: "{{ arch + '-' + (project_version['content'] | b64decode) }}"
   when: fabric.tag == ''
-
-- name: Unpack the certificates
-  unarchive:
-    src: "{{ fabricworkdir }}/allcerts.tgz"
-    dest: "{{ fabricworkdir }}/run"
-    remote_src: true
-
-- name: Process private key files
-  find:
-    paths: "{{ fabricworkdir }}/run/keyfiles/{{ item[0].org }}/{{ item[1] }}"
-    patterns: "*_sk"
-    recurse: yes
-  with_nested:
-    - "{{ cas }}"
-    - ["ca", "tlsca"]
-  when: cas | length > 0
-  register: privatekeys
+  
 
 - name: Process admin key files
   find:
-    paths: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}/users/Admin@{{ item.org }}/msp/keystore"
+    paths: "{{ keyfilesdir }}/orgs/{{ item.org }}/admin/msp/keystore"
     patterns: "*_sk"
     recurse: yes
   with_items:
@@ -193,46 +181,47 @@
   when: server | length > 1
   register: adminprocesskeys
 
-- name: Process private key files
-  template:
-    src: "{{ playbook_dir }}/../deploy_compose/fabricsetup/templates/fabric-ca-server-config.j2"
-    dest: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}/ca/fabric-ca-server-config.yaml"
-  with_items: "{{ cas }}"
-
-- name: Setup ca private key values
-  set_fact:
-    cakeys: |
-      {{ cakeys | combine( {item.item[0].org+'_'+item.item[1]: item.files[0].path.split('/')[-1] } ) }}
-  with_items: "{{ privatekeys.results }}"
-  no_log: True
-
 - name: Setup admin private key values
   set_fact:
     adminkeys: |
       {{ adminkeys | combine( {item.item.org: item.files[0].path.split('/')[-1] } ) }}
+  when: server | length > 1 and
+        item.files | length > 0
   with_items: "{{ adminprocesskeys.results }}"
-  when: server | length > 1
   no_log: True
 
-- name: Get the peer org list
-  set_fact:
-    peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
+- name:
+  find:
+    paths: "{{ keyfilesdir }}/orgs/{{ item.org }}/msp/intermediatecerts"
+    patterns: "*.pem"
+    file_type: "file"
+  with_items: "{{ orderers + peers }}"
+  register: processintercerts
 
-- name: Get all peer orgs
+- name:
   set_fact:
-    orgmembers: "{{ peers | map(attribute='org') | list  | unique | sort | join(\".member' '\") | trim | replace(' ', ',') }}"
+    intercerts: "{{ intercerts | default({}) | combine( {item.item.name: item.files | map(attribute='path') | list} ) }}"
+  with_items: "{{ processintercerts.results }}"
+
+- name: Copy start-orderer script
+  copy:
+    src: "{{ playbook_dir }}/fabricsetup/files/{{ item }}.sh"
+    dest: "{{ fabricworkdir }}/run/scripts/"
+    mode: u+rwx
+  with_items:
+    - start-orderer
+    - start-peer
 
 - name: Pull container images from the docker hub
   command: "docker pull {{ item }}"
   when: fabric.tag | length > 0
   with_items:
-    - "hyperledger/fabric-tools:{{ thetag }}"
-    - "hyperledger/fabric-ccenv:{{ thetag }}"
+    - "hyperledger/fabric-tools:{{ full_tag }}"
+    - "hyperledger/fabric-ccenv:{{ full_tag }}"
     - "hyperledger/fabric-kafka:{{ baseimagetag }}"
     - "hyperledger/fabric-zookeeper:{{ baseimagetag }}"
-    - "hyperledger/fabric-peer:{{ thetag }}"
-    - "hyperledger/fabric-ca:{{ thetag }}"
-    - "hyperledger/fabric-orderer:{{ thetag }}"
+    - "hyperledger/fabric-ca-peer:{{ full_tag }}"
+    - "hyperledger/fabric-ca-orderer:{{ full_tag }}"
     - "hyperledger/fabric-couchdb:{{ baseimagetag }}"
     - "hyperledger/fabric-baseimage:{{ baseimagetag }}"
     - "hyperledger/fabric-baseos:{{ baseimagetag }}"
@@ -244,22 +233,33 @@
     dest: "{{ fabricworkdir }}/run/{{ item.name }}.yml"
   when: item.flag | length > 0
   with_items:
-    - { name: "ca-compose", flag: "{{ cas }}" }
     - { name: "zookeeper-compose", flag: "{{ zookeepers }}" }
     - { name: "kafka-compose", flag: "{{ kafkas }}" }
     - { name: "orderer-compose", flag: "{{ orderers }}" }
     - { name: "peer-compose", flag: "{{ peers }}" }
     - { name: "server-compose", flag: "{{ server }}" }
+    - { name: "cli-compose", flag: "{{ 'cli' }}" }
 
 - name: Start fabric components
   command: "docker-compose -p {{ env }}.{{ item.name }} -f {{ fabricworkdir }}/run/{{ item.name }}.yml up -d"
   when: item.flag | length > 0
   with_items:
-    - { name: "ca-compose", flag: "{{ cas }}" }
     - { name: "zookeeper-compose", flag: "{{ zookeepers }}" }
+  tags: "fabricup"
+
+- pause:
+    seconds: 15
+
+- name: Start fabric components
+  command: "docker-compose -p {{ env }}.{{ item.name }} -f {{ fabricworkdir }}/run/{{ item.name }}.yml up -d"
+  when: item.flag | length > 0
+  with_items:
+    #- { name: "zookeeper-compose", flag: "{{ zookeepers }}" }
     - { name: "kafka-compose", flag: "{{ kafkas }}" }
     - { name: "orderer-compose", flag: "{{ orderers }}" }
     - { name: "peer-compose", flag: "{{ peers }}" }
+    #- { name: "cli-compose", flag: "{{ [1] if inventory_hostname in groups['builders'] else [] }}" }
+    - { name: "cli-compose", flag: "{{ [1] if inventory_hostname == 'fabric001' else [] }}" }
   tags: "fabricup"
 #####################################################################
 # - name: enroll CA admin
@@ -275,133 +275,148 @@
 #   with_items: "{{ cas }}"
 # sed -i -e 's/FABRIC_CA_SERVER_TLS_ENABLED=false/FABRIC_CA_SERVER_TLS_ENABLED=true/g' {{ fabricworkdir }}/run/ca-compose.yml
 
-- name: Locate a host to run peer channel create command
-  set_fact:
-    clihost: "{{ item }}"
-    clipeer: "{{ allpeers | random }}"
-    cliorderer: "{{ allorderers | random }}"
-  when: peers | length > 0 and clihost == ""
-  with_items: "{{ groups['allnodes'] }}"
-###
-- name: Copy Dockerfile-server file and app and configs directory to server hosts
-  synchronize:
-    src: "{{ playbook_dir }}/fabricsetup/files/{{ item }}"
-    dest: "{{ fabricworkdir }}/run"
-  with_items:
-    - app
-    - configs
-    - Dockerfile-server
-  no_log: True
-  when: server | length > 1
-
-- name: Template testAPI
-  vars:
-    CHANNEL_NAME: "{{ fabric.channel_name }}"
-  template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/testAPI.sh.j2"
-    dest: "{{ fabricworkdir }}/run/app/testAPI.sh"
-  when: server | length > 1
-
-- name: Template config.js
-  template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/config.js.j2"
-    dest: "{{ fabricworkdir }}/run/app/config.js"
-  when: server | length > 1
-
-- name: Template config.json
-  template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/config.json.j2"
-    dest: "{{ fabricworkdir }}/run/configs/config.json"
-  when: server | length > 1  
-
-- name: Template network-config
-  vars:
-    keyfilesdir: /etc/hyperledger/allorgs
-  template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/network-config.j2"
-    dest: "{{ fabricworkdir }}/run/configs/network-config.yml"
-  when: server | length > 1
-
-- name: Template org configs
-  template:
-    src: "{{ playbook_dir }}/fabricsetup/templates/org-config.j2"
-    dest: "{{ fabricworkdir }}/run/configs/{{ item }}-config.yml"
-  when: server | length > 1
-  with_items: "{{ peerorgs }}"
-
-###
-- name: Make sure that chaincode directory exists
-  file:
-    path: "{{ fabricworkdir }}/run/keyfiles/chaincode"
-    state: "directory"
-    mode: 0775
-  when: clihost == inventory_hostname #TODO
-
-- name: Move chaincode to the server
-  copy:
-    src: "{{ playbook_dir }}/fabricsetup/templates/example_cc.go"
-    dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/example_cc.go"
-    mode: "u=rw,g=rw"
-  when: clihost == inventory_hostname #TODO
-###
-
-- name: Start the server container
-  become: true
-  docker_service:
-    project_src: "{{ fabricworkdir }}/run"
-    project_name: "{{ env }}.server-compose"
-    files: 
-      - server-compose.yml
-    state: present
-  when: server | length > 1
-
-- wait_for:
-    host: "{{ server }}"
-    port: 4000
-  when: server | length > 1
-
-- name: Run testAPI.sh
-  shell: 'docker exec {{ server }} bash -c "./testAPI.sh -l node"'
-  async: 150
-  poll: 0
-  when: server | length > 1
-  
+#- meta: end_play
 
 
 
-#################################################
-
-# - name: Make sure that working directory exists and clean
+################
+# ################
+# - name: Locate a host to run peer channel create command
+#   set_fact:
+#     clihost: "{{ item }}"
+#     clipeer: "{{ allpeers | random }}"
+#     cliorderer: "{{ allorderers | random }}"
+#   when: peers | length > 0 and clihost == ""
+#   with_items: "{{ groups['allnodes'] }}"
+# ###
+# - name: Create directories
 #   file:
-#     path: "{{ fabricworkdir }}/run/keyfiles/chaincode"
+#     path: "{{ fabricworkdir }}/run/{{ item }}"
 #     state: "directory"
 #     mode: 0775
-#   when: clihost == inventory_hostname
+#   when: clihost == inventory_hostname #TODO
+#   with_items:
+#     - configs
+#     - keyfiles/chaincode
 
+# - name: Copy Dockerfile-server file and app and configs directory to server hosts
+#   synchronize:
+#     src: "{{ playbook_dir }}/fabricsetup/files/{{ item }}"
+#     dest: "{{ fabricworkdir }}/run"
+#   with_items:
+#     - app
+#     - configs
+#     - Dockerfile-server
+#   no_log: True
+#   when: server | length > 1
+
+# - name: Template testAPI
+#   vars:
+#     CHANNEL_NAME: "{{ fabric.channel_name }}"
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/testAPI.sh.j2"
+#     dest: "{{ fabricworkdir }}/run/app/testAPI.sh"
+#   when: server | length > 1
+
+# - name: Template config.js
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/config.js.j2"
+#     dest: "{{ fabricworkdir }}/run/app/config.js"
+#   when: server | length > 1
+
+# - name: Template config.json
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/config.json.j2"
+#     dest: "{{ fabricworkdir }}/run/configs/config.json"
+#   when: server | length > 1  
+
+# - name: Template network-config
+#   vars:
+#     keyfilesdir: /etc/hyperledger/keyfiles
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/network-config.j2"
+#     dest: "{{ fabricworkdir }}/run/configs/network-config.yml"
+#   when: server | length > 1
+
+# - name: Template org configs
+#   template:
+#     src: "{{ playbook_dir }}/fabricsetup/templates/org-config.j2"
+#     dest: "{{ fabricworkdir }}/run/configs/{{ item }}-config.yml"
+#   when: server | length > 1
+#   with_items: "{{ peerorgs }}"
+
+# ###
 # - name: Move chaincode to the server
 #   copy:
-#     src: "{{ playbook_dir }}/fabricsetup/templates/firstcode.go"
-#     dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/firstcode.go"
+#     src: "{{ playbook_dir }}/fabricsetup/templates/example_cc.go"
+#     dest: "{{ fabricworkdir }}/run/keyfiles/chaincode/example_cc.go"
 #     mode: "u=rw,g=rw"
-#   when: clihost == inventory_hostname
+#   when: clihost == inventory_hostname #TODO
+# ###
 
-# - name: Create peer channel command script
-#   template:
-#     src: "{{ playbook_dir }}/fabricsetup/templates/dochannel.j2"
-#     dest: "{{ fabricworkdir }}/run/keyfiles/dochannel.sh"
-#     mode: "u=rx,g=rx"
-#   when: clihost == inventory_hostname
+# - name: Start the server container
+#   become: true
+#   docker_service:
+#     project_src: "{{ fabricworkdir }}/run"
+#     project_name: "{{ env }}.server-compose"
+#     files: 
+#       - server-compose.yml
+#     state: present
+#   when: server | length > 1
 
-# - name: Create peer channel command docker compose file
-#   template:
-#     src: "{{ playbook_dir }}/fabricsetup/templates/cli-compose.j2"
-#     dest: "{{ fabricworkdir }}/run/cli-compose.yml"
-#   when: clihost == inventory_hostname
+# - wait_for:
+#     host: "{{ server }}"
+#     port: 4000
+#   when: server | length > 1
 
-# - name: Wait for containers to be ready
-#   pause:
-#     seconds: 30
+# - name: Run testAPI.sh
+#   shell: 'docker exec {{ server }} bash -c "./testAPI.sh -l node"'
+#   async: 150
+#   poll: 0
+#   when: server | length > 1
+#######################
+#######################
 
-# - name: Start fabriccli components
-#   command: "docker-compose -p {{ env }}.cli -f {{ fabricworkdir }}/run/cli-compose.yml up -d"
-#   when: clihost == inventory_hostname
+- set_fact:
+    first_peer: "{{ allpeers | first }}"
+    first_orderer: "{{ allorderers | first }}"
+
+- name: Create channel
+  shell: 'docker exec {{ first_peer.name }} bash -c "
+            export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
+            peer channel create -o {{ first_orderer.name }}:7050
+                                -c {{ fabric.channel_name }}
+                                -f /etc/hyperledger/keyfiles/{{ fabric.channel_name }}.tx 
+                                --tls true 
+                                --timeout 120
+                                --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem "'
+  when: first_peer in peers
+
+- name: Fetch channel genesis block
+  shell: 'docker exec {{ item.name }} bash -c "
+            export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
+            peer channel fetch config /etc/hyperledger/keyfiles/{{ fabric.channel_name }}.block
+                -c {{ fabric.channel_name }}
+                -o {{ first_orderer.name }}:7050 
+                --tls 
+                --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem"'
+  with_items: "{{ peers }}"
+
+#- meta: end_play
+
+- name: Join peers
+  shell: 'docker exec {{ item.name }} bash -c "
+            export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
+            peer channel join -b /etc/hyperledger/keyfiles/{{ fabric.channel_name }}.block"'
+  with_items: "{{ peers }}"
+
+- name: Update the anchor peers
+  shell: 'docker exec -it {{ item.name }} bash -c "
+            export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
+            peer channel update -c ${{ fabric.channel_name }}
+                                -f /etc/hyperledger/peer/anchor.tx 
+                                -o {{ first_orderer.name }}:7050 
+                                --tls 
+                                --cafile /etc/hyperledger/keyfiles/{{ item.org }}-ca-chain.pem"'
+                                #--clientauth"'
+  with_items: "{{ anchor_peers | intersect(peers) }}"

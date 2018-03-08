@@ -4,15 +4,21 @@ version: '2'
 services:
 
   fabriccli:
-    container_name: fabriccli
-    image: hyperledger/fabric-tools:{{ thetag }}
+    container_name: cli
+    image: hyperledger/fabric-tools:{{ full_tag }}
     network_mode: bridge
     hostname: fabriccli
     environment:
+      - CORE_PEER_ID=peer2.org1
+      - CORE_PEER_ADDRESS=peer2.org1:7051
+      - CORE_PEER_LOCALMSPID=org1
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/keyfiles/orgs/org1/admin/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/keyfiles/org1-ca-chain.pem
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_LOGGING_LEVEL=DEBUG
     volumes:
       - /var/run/:/host/var/run/
-      - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/allorgs
-      - {{ fabricworkdir }}/run/keyfiles/chaincode:/opt/gopath/src/chaincode
-    entrypoint: /etc/hyperledger/allorgs/dochannel.sh
+      - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/keyfiles
+      - {{ fabricworkdir }}/run/configs/:/configs/
+    command: sleep 99999

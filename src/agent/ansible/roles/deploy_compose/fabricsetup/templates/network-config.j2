@@ -51,7 +51,7 @@ channels:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: {{ first_peer == peer.name | ternary('true','false') }} #TODO
+        eventSource: true #{ first_peer == peer.name | ternary('true','false') } #TODO
 {% endfor %}
 
     # [Optional]. what chaincodes are expected to exist on this channel? The application can use
@@ -77,18 +77,21 @@ organizations:
 {% endif %}
 {% endfor %}
     certificateAuthorities:
-      - ca1.{{ org }} #TODO
+      - ca1.{{ org }} 
+      #TODO
+{% if clientorg is not defined %}
     adminPrivateKey:
-      path: {{keyfilesdir}}/{{ org }}/users/Admin@{{ org }}/msp/keystore/{{ adminkeys[org] }}
+      path: {{keyfilesdir}}/orgs/{{ org }}/admin/msp/keystore/{{ adminkeys[org] }}
     signedCert:
-      path: {{keyfilesdir}}/{{ org }}/users/Admin@{{ org }}/msp/signcerts/Admin@{{ org }}-cert.pem
+      path: {{keyfilesdir}}/orgs/{{ org }}/admin/msp/signcerts/cert.pem
+{% endif %}
 {% endfor %}
 
 
 orderers:
 {% for orderer in allorderers %}
   {{ orderer.name }}:
-    url: grpc{% if fabric.tls %}s{% endif %}://{{ orderer.name }}:7050
+    url: grpc{{ "s" if fabric.tls }}://{{ orderer.name }}:7050
   
     # these are standard properties defined by the gRPC library
     # they will be passed in as-is to gRPC client constructor
@@ -97,23 +100,21 @@ orderers:
     #    grpc-max-send-message-length: 15
 
     tlsCACerts:
-      path: {{keyfilesdir}}/{{ orderer.org }}/orderers/{{ orderer.name }}/tls/ca.crt
+      path: {{keyfilesdir}}/{{ orderer.org }}-ca-chain.pem
 {% endfor %}
 
 
 peers:
 {% for peer in allpeers %}
   {{ peer.name }}:
-    url: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7051
-    eventUrl: grpc{% if fabric.tls %}s{% endif %}://{{ peer.name }}:7053
+    url: grpc{{ "s" if fabric.tls }}://{{ peer.name }}:7051
+    eventUrl: grpc{{ "s" if fabric.tls }}://{{ peer.name }}:7053
     tlsCACerts:
-      path: {{keyfilesdir}}/{{ peer.org }}/peers/{{ peer.name }}/tls/ca.crt
+      path: {{keyfilesdir}}/{{ peer.org }}-ca-chain.pem
 
 {% endfor %}
 
 
-
-#
 # Fabric-CA is a special kind of Certificate Authority provided by Hyperledger Fabric which allows
 # certificate management to be done via REST APIs. Application may choose to use a standard
 # Certificate Authority instead of Fabric-CA, in which case this section would not be specified.
@@ -121,20 +122,21 @@ peers:
 certificateAuthorities:
 {% for ca in allcas if ca.org in peerorgs %}
   {{ ca.name }}:
-    url: http{% if fabric.tls %}s{% endif %}://{{ ca.name }}:7054
+    url: http{{ "s" if fabric.tls }}://{{ ca.name }}:7054
 
     # the properties specified under this object are passed to the 'http' client verbatim when
     # making the request to the Fabric-CA server
     httpOptions:
       verify: false
     tlsCACerts:
-      path: {{keyfilesdir}}/{{ ca.org }}/ca/{{ ca.name }}-cert.pem
-
+      path: {{keyfilesdir}}/{{ ca.org }}-ca-chain.pem
+{% if clientorg is not defined %}
     # Fabric-CA supports dynamic user enrollment via REST APIs. A "root" user, a.k.a registrar, is
     # needed to enroll and invoke new users.
     registrar:
-      - enrollId: {{ fabric.ca.admin }}
-        enrollSecret: {{ fabric.ca.adminpw }}
+      - enrollId: admin-{{ ca.org }}
+        enrollSecret: adminpw
     # [Optional] The optional name of the CA.
     caName: {{ ca.name }}
+{% endif %}
 {% endfor %}

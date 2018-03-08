@@ -1,0 +1,18 @@
+---
+- name: Setup variables
+  set_fact:
+    fabricworkdir: "/opt/gopath/{{ env }}/fabric"
+
+- name: Check docker compose file stats
+  stat:
+    path: "{{ fabricworkdir }}/run/{{ item }}.yml"
+  register: cfiles
+  with_items:
+    - "rca-compose"
+    - "ica-compose"
+
+- name: Shut down fabric components
+  command: "docker-compose -p {{ env }}.{{ item.item }} -f {{ fabricworkdir }}/run/{{ item.item }}.yml down"
+  when: item.stat.exists == true
+  with_items: "{{ cfiles.results }}"
+  no_log: true

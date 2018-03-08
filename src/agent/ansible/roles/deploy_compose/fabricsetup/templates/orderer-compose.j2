@@ -6,31 +6,37 @@ services:
 {% for orderer in orderers %}
   {{ orderer.name }}:
     container_name: {{ orderer.name }}
-    image: hyperledger/fabric-orderer:{{ thetag }}
+    image: hyperledger/fabric-ca-orderer:{{ full_tag }}
     network_mode: bridge
     hostname: {{ orderer.name }}
     environment:
+      - FABRIC_CA_CLIENT_HOME=/etc/hyperledger/orderer
+      - FABRIC_CA_CLIENT_TLS_CERTFILES=/var/hyperledger/orderer/msp/intermediatecerts/{{ intercerts[orderer.name] | first | basename }}
+      - ORDERER_HOME=/etc/hyperledger/orderer
+      - ORDERER_NAME={{ orderer.name }}
       - ORDERER_GENERAL_LOGLEVEL=debug
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_GENESISMETHOD=file
-      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block/genesis.block
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/genesis.block
       - ORDERER_GENERAL_LOCALMSPID={{ orderer.org }}
       - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
       - ORDERER_GENERAL_TLS_ENABLED={{ fabric.tls | lower }}
 {% if fabric.tls %}
-      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
-      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
-      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[{% for icert in intercerts[orderer.name] %}/var/hyperledger/orderer/msp/intermediatecerts/{{ icert | basename }}{{ ',' if not loop.last else '' }}{% endfor %}]
 {% endif %}
       - ORDERER_GENERAL_TLS_CLIENTAUTHENABLED=false
       - ORDERER_KAFKA_RETRY_SHORTINTERVAL=1s
       - ORDERER_KAFKA_RETRY_SHORTTOTAL=30s
       - ORDERER_KAFKA_VERBOSE=true
+      - ENROLLMENT_URL=http{{ "s" if fabric.tls }}://{{ orderer.name }}:ordererpw@{{ allcas | selectattr('org', 'equalto', orderer.org) | map(attribute='name') | first }}:7054
     volumes:
-      - {{ fabricworkdir }}/run/keyfiles:/var/hyperledger/orderer/orderer.genesis.block
-      - {{ fabricworkdir }}/run/keyfiles/{{ orderer.org }}/orderers/{{ orderer.name }}:/var/hyperledger/orderer
-      - {{ fabricworkdir }}/run/keyfiles:/var/hyperledger/allorgs
-    command: orderer
+      #- {{ fabricworkdir }}/run/keyfiles:/var/hyperledger/orderer/orderer.genesis.block
+      - {{ fabricworkdir }}/run/keyfiles/orgs/{{ orderer.org }}:/var/hyperledger/orderer
+      - {{ fabricworkdir }}/run/scripts:/scripts
+      #- {{ fabricworkdir }}/run/keyfiles:/var/hyperledger/allorgs
+    command: /scripts/start-orderer.sh
 
 {% endfor %}
 

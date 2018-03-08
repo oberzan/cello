@@ -5,7 +5,8 @@
     gopath: "/opt/gopath/{{ env }}"
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
     fabricpath: "/opt/gopath/{{ env }}/src/github.com/hyperledger/fabric"
-    target: "{{ target | default('cryptogen,configtxgen') }}"
+    fabriccapath: "/opt/gopath/{{ env }}/src/github.com/hyperledger/fabric-ca"
+    target: "{{ target | default('configtxgen,configtxlator') }}"
 
 - name: Setup hyperledger directory
   file:
@@ -29,8 +30,18 @@
 
 - name: Extract hyperledger fabric code
   git:
-    repo: "{{ GIT_URL | default('http://gerrit.hyperledger.org/r/fabric') }}"
+    repo: "{{ FABRIC_GIT_URL | default('http://gerrit.hyperledger.org/r/fabric') }}"
     dest: "{{ fabricpath }}"
+    force: yes
+    refspec: "{{ GERRIT_REFSPEC | default('') }}"
+    version: "{{ (GERRIT_REFSPEC == '') | ternary('HEAD','FETCH_HEAD') }}"
+    depth: 1
+  tags: "code"
+
+- name: Extract hyperledger fabric-ca code
+  git:
+    repo: "{{ FABRIC_CA_GIT_URL | default('http://gerrit.hyperledger.org/r/fabric-ca') }}"
+    dest: "{{ fabriccapath }}"
     force: yes
     refspec: "{{ GERRIT_REFSPEC | default('') }}"
     version: "{{ (GERRIT_REFSPEC == '') | ternary('HEAD','FETCH_HEAD') }}"
@@ -42,6 +53,16 @@
   args:
     chdir: "{{ fabricpath }}"
   with_items: "{{ target.split(',') }}"
+  environment:
+    GOROOT: "{{ goroot }}"
+    GOPATH: "{{ gopath }}"
+    PATH: "{{ ansible_env.PATH}}:{{ goroot }}/bin"
+  tags: "make"
+
+- name: Make fabric-ca-client
+  shell: "make fabric-ca-client >> {{ gopath }}/build.log"
+  args:
+    chdir: "{{ fabriccapath }}"
   environment:
     GOROOT: "{{ goroot }}"
     GOPATH: "{{ gopath }}"
@@ -79,7 +100,7 @@
   args:
     chdir: "{{ fabricpath }}"
   register: rawimages
-  when: fabric.baseimage_tag == ''
+  when: fabric.baseimage_tag == '' and inventory_hostname in groups['builders']
 
 - name: Save all the docker images
   shell: >-
@@ -87,9 +108,12 @@
     {{ rawimages.stdout_lines | join(' ') }}
   args:
     chdir: "{{ gopath }}"
-  when: fabric.baseimage_tag == '' and rawimages is defined and rawimages.stdout_lines|length > 0
+  when: fabric.baseimage_tag == '' and 
+        rawimages is defined and 
+        rawimages.stdout_lines|length > 0
 
 - name: Create the project version file
   template:
     src: "{{ playbook_dir }}/../deploy_compose/fabricbuild/templates/VERSION.j2"
     dest: "{{ fabricworkdir }}/images/VERSION"
+  when: inventory_hostname in groups['builders']

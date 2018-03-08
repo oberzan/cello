@@ -1,0 +1,30 @@
+---
+version: '2'
+
+services:
+
+{% for ca in cas %}
+  {{ ca.name }}:
+    container_name: {{ ca.name}}
+    image: hyperledger/fabric-ca:{{ full_tag }}
+    network_mode: bridge
+    hostname: {{ ca.name}}
+    environment:
+      - FABRIC_CA_SERVER_HOME=/etc/hyperledger/fabric-ca
+      - FABRIC_CA_SERVER_CA_NAME={{ ca.name}}
+      - FABRIC_CA_SERVER_INTERMEDIATE_TLS_CERTFILES=/keyfiles/{{ ca.org }}-ca-cert.pem
+      - FABRIC_CA_SERVER_CSR_HOSTS={{ ca.name}}
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_DEBUG=true
+      - PARENT_URL=https://rca.{{ ca.org }}.admin:adminpw@rca.{{ ca.org }}:7054
+      - TARGET_CHAINFILE=/keyfiles/{{ ca.org }}-ca-chain.pem
+      #- ORG=$ORG
+
+    volumes:
+      - {{ fabricworkdir }}/run/keyfiles/:/keyfiles
+    command: bash -c '
+              fabric-ca-server init -b {{ ca.name }}.admin:adminpw -u $$PARENT_URL -d;
+              cp $$FABRIC_CA_SERVER_HOME/ca-chain.pem $$TARGET_CHAINFILE;
+              fabric-ca-server start'
+
+{% endfor %}

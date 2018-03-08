@@ -105,49 +105,32 @@
     - generator-hyperledger-composer
     - composer-rest-server
 
-# - name: Install composer npm packages globally.
-#   npm:
-#     name: composer-rest-server
-#     version: '0.16.1'
-#     global: yes
-
 - name: Install "yo" node.js package globally.
   environment:
     PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.4/bin:{{ ansible_env.PATH }}
   npm:
     name: yo
-    version: '2.0.0'
+    version: '2.0.1'
     global: yes
 
-# - name: Template composer Org only connection profiles
-#   vars:
-#     ORG_ONLY: true
-#   template:
-#     src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
-#     dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}-only.json"
-#   with_items: "{{ peerorgs }}"
-
-# - name: Template composer Org connection profiles
-#   vars:
-#     ORG_ONLY: false
-#   template:
-#     src: "{{ playbook_dir }}/composersetup/templates/composer-connection.j2"
-#     dest: "{{ fabricworkdir }}/run/composer/connection-{{ item }}.json"
-#   with_items: "{{ peerorgs }}"
+- name:
+  template:
+    src: "{{ playbook_dir }}/composersetup/templates/endorsement-policy.json"
+    dest: "{{ fabricworkdir }}/run/composer/"
 
 - name: Process admin key files
   find:
-    paths: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}/users/Admin@{{ item.org }}/msp/keystore"
+    paths: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/admin/msp/keystore"
     patterns: "*_sk"
     recurse: yes
   with_items:
-    - "{{ allcas }}"
+    - "{{ peerorgs }}"
   register: adminprocesskeys
 
 - name: Setup admin private key values
   set_fact:
     adminkeys: |
-      {{ adminkeys | combine( {item.item.org: item.files[0].path.split('/')[-1] } ) }}
+      {{ adminkeys | combine( {item.item: item.files[0].path.split('/')[-1] } ) }}
   with_items: "{{ adminprocesskeys.results }}"
   no_log: True
 
@@ -165,8 +148,8 @@
     composer card create 
       -p ./connection-{{ item }}.yml 
       -u PeerAdmin 
-      -c ../keyfiles/{{ item }}/users/Admin@{{ item }}/msp/signcerts/Admin@{{ item }}-cert.pem
-      -k ../keyfiles/{{ item }}/users/Admin@{{ item }}/msp/keystore/{{ adminkeys[item] }}
+      -c ../keyfiles/orgs/{{ item }}/admin/msp/signcerts/cert.pem
+      -k ../keyfiles/orgs/{{ item }}/admin/msp/keystore/{{ adminkeys[item] }}
       -r PeerAdmin
       -r ChannelAdmin
       -f PeerAdmin@{{ env }}-{{ item }}.card
@@ -183,6 +166,8 @@
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"
 
+################################
+
 - name: Composer runtime install
   vars:
     DEBUG: "composer:*"
@@ -192,36 +177,29 @@
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"
 
-# - name: Composer create identities
-#   vars:
-#     DEBUG: "composer:*"
-#   shell:
-#     composer identity request 
-#       -c PeerAdmin@{{ env }}-org1
-#       -u admin -s adminpw 
-#       -d alice
-#   args:
-#     chdir: "{{ fabricworkdir }}/run/composer/"
-
 - name: Composer create identities
   vars:
     DEBUG: "composer:*"
   shell:
     composer identity request 
       -c PeerAdmin@{{ env }}-{{ item }}
-      -u admin -s adminpw 
-      -d user-{{ item }}
+      -u ca1.{{ item }}.admin -s adminpw 
+      -d BNadmin-{{ item }}
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"
 
-- name: Copy empty-network .bna folder
+- name: Copy marbles-network .bna folder
   copy:
     src: "{{ playbook_dir }}/composersetup/files/marbles-network.bna"
     dest: "{{ fabricworkdir }}/run/composer/"
 
 - set_fact:
-    create_cmd: "{{ create_cmd | default('composer network start --card PeerAdmin@' + env + '-' + peerorgs.0 + ' --archiveFile marbles-network.bna') + ' --networkAdmin user-' + item + ' --networkAdminCertificateFile user-' + item + '/admin-pub.pem' }}"
+    create_cmd: "{{ create_cmd | 
+                      default('composer network start --card PeerAdmin@' + env + '-' + peerorgs.0 + 
+                                ' --archiveFile marbles-network.bna 
+                                -o endorsementPolicyFile=endorsement-policy.json')
+                        + ' --networkAdmin BNadmin-' + item + ' --networkAdminCertificateFile BNadmin-' + item + '/ca1.'+ item +'.admin-pub.pem' }}"
   with_items: "{{ peerorgs }}"
 
 - name: Composer network start
@@ -234,14 +212,14 @@
 - name: Composer create user cards
   vars:
     DEBUG: "composer:*"
-    user: user-{{ item }}
+    user: BNadmin-{{ item }}
   shell:
     composer card create 
       -p connection-{{ item }}.yml 
       -u {{ user }} 
       -n marbles-network 
-      -c {{ user }}/admin-pub.pem 
-      -k {{ user }}/admin-priv.pem
+      -c {{ user }}/ca1.{{ item }}.admin-pub.pem 
+      -k {{ user }}/ca1.{{ item }}.admin-priv.pem
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"

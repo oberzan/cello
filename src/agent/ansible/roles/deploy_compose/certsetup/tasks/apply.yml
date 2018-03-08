@@ -3,28 +3,61 @@
   set_fact:
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
     fabricpath: "/opt/gopath/{{ env }}/src/github.com/hyperledger/fabric"
+    fabriccapath: "/opt/gopath/{{ env }}/src/github.com/hyperledger/fabric-ca"
     gopath: "/opt/gopath/{{ env }}"
+    cals: "{{ [] }}"
+    peerls: "{{ [] }}"
 
 - name: Create component list
   set_fact:
-    cals: "{{ cals | default([]) + item.value.cas | default([]) }}"
-    peerls: "{{ peerls | default([]) + item.value.peers | default([]) }}"
+    allcas: "{{ [] }}"
+    allorderers: "{{ [] }}"
+    allpeers: "{{ [] }}"
+    allorgs: "{{ [] }}"
+    cas: "{{ [] }}"
+    cals: "{{ cals + [{ 'name': item.value.cas,
+                        'host': item.key }] | default([]) }}"
+    orderers: "{{ [] }}"    
+    peerls: "{{ peerls + item.value.peers | default([]) }}"
     ordererls: "{{ ordererls | default([]) + item.value.orderers | default([]) }}"
     kafkals: "{{ kafkals | default([]) + item.value.kafkas | default([]) }}"
   with_dict: "{{ fabric.network }}"
 
-- name: Get ca object list
+- name: Get cas
   set_fact:
     cas: |
-      {{ cas | default([]) + [{ 'org':item.split('.')[-1],
+      {{ cas + [{ 'org':item.split('.')[-1],
         'name':item,
         'hostname':item.split('.')[0]}] }}
-  with_items: "{{ cals }}"
-  when: cals | length > 0
+  with_items: "{{ fabric.network[current_host].cas | default([]) }}"
 
-- name: Get ca object list
+- name: Get cas
   set_fact:
     cas: "{{ cas | default([]) }}"
+
+- name: Get all ca object list
+  set_fact:
+    allcas: |
+      {{ allcas + [{ 'org': item.1.split('.')[-1],
+                     'name': item.1,
+                     'host': item.0.host }] }}
+  with_subelements: 
+    - "{{ cals }}"
+    - name
+
+- name: Get all ca object list
+  set_fact:
+    allpeers: |
+      {{ allpeers + [{ 'org':item.split('@')[1].split('.')[-1],
+                       'name':item.split('@')[1],
+                       'role':item.split('@')[0] }] }}
+  with_items: "{{ peerls }}"
+
+- name:
+  set_fact:
+    allorderers: "{{ allorderers + [{'org':item.split('.')[-1],
+                                     'name':item }] }}"
+  with_items: "{{ ordererls }}"
 
 - name: Get peer object list
   set_fact:
@@ -33,86 +66,210 @@
         'name':item.split('@')[1],
         'hostname': item.split('@')[1].split('.')[0],
         'role':item.split('@')[0]}] }}
-  with_items: "{{ peerls }}"
+  with_items: "{{ fabric.network[current_host].peers | default([]) }}"
 
 - name: Find all anchor peers
   set_fact:
-    anchor_peers: "{{ peers | selectattr('role', 'equalto', 'anchor') | list }}"
+    anchor_peers: "{{ allpeers | selectattr('role', 'equalto', 'anchor') | list }}"
 
 - name: Create org anchor peer hash
   set_fact:
     org_anchor: "{{ org_anchor | default({}) | combine( { item.org: item } ) }}"
-  with_items: "{{ anchor_peers }}"
+  with_items: "{{ anchor_peers }}"    
 
-- name: Sort the peer list
-  set_fact:
-    peers: "{{ peers | sort(attribute='org') }}"
-
-- name: Get orderer object list
+- name: Get orderer container list
   set_fact:
     orderers: |
-      {{ orderers | default([]) + [{'org':item.split('.')[-1],
+      {{ orderers + [{'org':item.split('.')[-1],
         'name':item,
         'hostname':item.split('.')[0] }] }}
-  with_items: "{{ ordererls }}"
+  with_items: "{{ fabric.network[current_host].orderers | default([]) }}"
 
-- name: Sort the orderer list
+- name: Sort lists
   set_fact:
+    peers: "{{ peers | sort(attribute='org') }}"
     orderers: "{{ orderers | sort(attribute='org') }}"
-    allorgs: "{{ [] }}"
+    kafkas: "{{ kafkals | sort }}"
 
 - name: Sort the ca and kafka list
   set_fact:
     caorgs: "{{ cas | map(attribute='org') | list  | unique | sort }}"
     peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
     ordererorgs: "{{ orderers | map(attribute='org') | list  | unique | sort }}"
-    kafkas: "{{ kafkals | sort }}"
+    allorgs: "{{ allcas | map(attribute='org') | list | unique | sort }}"    
 
-- name: Create all orgs list
-  set_fact:
-    allorgs: "{{ caorgs + peerorgs + ordererorgs | sort }}"
-
-- name: Filter the all orgs list
-  set_fact:
-    allorgs: "{{ allorgs | unique | sort }}"
-
-- name: Ensure certificate directory is clean
+- name: Create orgs directories
   file:
-    path: "{{ fabricworkdir }}/keyfiles"
-    state: "{{ item }}"
-  with_items:
-    - "absent"
-    - "directory"
+    path: "{{ fabricworkdir }}/run/{{ item.0 }}/orgs/{{ item.1.org }}"
+    recurse: yes
+    state: directory
+  with_nested: 
+    - ["keyfiles", "cas"]
+    - "{{ cas }}"
 
-- name: Create crypto-config file
-  template:
-    src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/crypto-config.j2"
-    dest: "{{ fabricworkdir }}/crypto-config.yml"
+- name: Pull certificates from the builder machine
+  vars:
+    file: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+    src_host: "{{ allcas | selectattr('org', 'equalto', item) | map(attribute='host') | first }}"
+  command: >-
+    scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
+    ssh_user }}@{{ hostvars[src_host].private_ip }}:{{ file }}"
+    "{{ file }}"
+  with_items: "{{ allorgs | difference(caorgs) }}"
 
-- name: Create the certificate files
-  command: "{{ fabricpath }}/build/bin/cryptogen generate --config crypto-config.yml --output keyfiles"
-  args:
-    chdir: "{{ fabricworkdir }}"
+- name: Enroll ordererorg CA admins
+  vars:
+    ordererorg_ca: "{{ allcas | selectattr('org', 'equalto', item) | first }}"
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client enroll -d
+                -u https://{{ ordererorg_ca.name }}.admin:adminpw@{{ ordererorg_ca.name }}:7054"
+  with_items: "{{ ordererorgs }}"
 
-- name: Combine all orgs into one location
-  shell: >-
-    mv {{ item }}/* . && rm -rf {{ item }}
-  args:
-    chdir: "{{ fabricworkdir }}/keyfiles"
-  with_items:
-    - "peerOrganizations"
-    - "ordererOrganizations"
+
+
+- name: Register orderers
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item.org }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client register -d 
+                --id.name {{ item.name }}
+                --id.secret ordererpw
+                --id.type orderer"
+  with_items: "{{ orderers }}"
+
+- name: Register orderer admins
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client register -d 
+                --id.name admin-{{ item }}
+                --id.secret adminpw
+                --id.attrs 'admin=true:ecert'"
+  #when: inventory_hostname in groups['builders']
+  with_items: "{{ allorderers | map(attribute='org') | list | unique | intersect(caorgs) }}"
+
+- name: Enroll peer CA admins
+  vars:
+    peerorg_ca: "{{ allcas | selectattr('org', 'equalto', item) | first }}"
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client enroll -d
+                -u https://{{ peerorg_ca.name }}.admin:adminpw@{{ peerorg_ca.name }}:7054"
+  with_items: "{{ peerorgs }}"
+
+- name: Register peers
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item.org }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client register 
+                --id.name {{ item.name }}
+                --id.secret peerpw
+                --id.affiliation {{ item.org }}
+                --id.type peer"
+  with_items: "{{ peers }}"
+
+- name: Registering admin with CA
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client register
+                --id.name admin-{{ item }}
+                --id.secret adminpw
+                --id.affiliation {{ item }}
+                --id.attrs 'hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert'"
+  with_items: "{{ allpeers | map(attribute='org') | list | unique | intersect(caorgs) }}"
+
+- name: Registering user with CA
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client register
+                --id.name user-{{ item }}
+                --id.secret userpw"
+  with_items: "{{ allpeers | map(attribute='org') | list | unique | intersect(caorgs) }}"
+
+- name: Get CA certs
+  environment:
+    #FABRIC_CA_CLIENT_HOME: {{ fabricworkdir }}/run/cas/orgs/{{ item.0.org }}
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client getcacert
+                  -u https://{{ allcas | selectattr('org', 'equalto', item) | map(attribute='name') | first }}:7054 
+                  -M {{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/msp"
+  with_items: "{{ allorgs }}"
+
+- name: Create tlscacerts, tlsintermediatecerts and admincerts directories
+  vars:
+    org_msp_dir: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/msp"
+  file:
+    path: "{{ org_msp_dir }}/{{ item.1 }}"
+    state: directory
+  with_nested: 
+    - "{{ allorgs }}"
+    - ["tlscacerts", "tlsintermediatecerts", "admincerts"]
+
+- name: Create admin/msp/admincerts directory
+  file:
+    path: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/admin/msp/admincerts"
+    state: directory
+  with_items: "{{ allorgs }}"
+
+- name: Copy certificates to tlscacerts/tlsintermeditecerts
+  command: "cp -a {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/msp/{{ item.1 }}/. 
+              {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/msp/tls{{ item.1 }}/"
+  with_nested: 
+    - "{{ allorgs }}" #ordererorgs | union(peerorgs)
+    - ["cacerts", "intermediatecerts"]
+
+### Currently blocked by https://jira.hyperledger.org/browse/FAB-3752
+### TODO: Change when fixed
+- name: Enroll CA org admins
+  vars:
+    peerorg_ca: "{{ allcas | selectattr('org', 'equalto', item) | first }}"
+  environment:
+    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/admin"
+    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
+  command: "{{ fabriccapath }}/bin/fabric-ca-client enroll
+                -u https://admin-{{ item }}:adminpw@{{ peerorg_ca.name }}:7054"
+  with_items: "{{ ordererorgs | union(peerorgs) | union(caorgs) }}"
+###
+- name: Pull admin certs from the builder machine
+  vars:
+    file: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}"
+  command: >-
+    scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
+    ssh_user }}@{{ hostvars[groups.builders.0].private_ip }}:{{ file }}/admin"
+    "{{ file }}/"
+  when: inventory_hostname not in groups['builders']
+  with_items: "{{ peerorgs }}"
+###
+
+- name: Copy admincert
+  command: "cp -a {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/admin/msp/signcerts/cert.pem 
+                  {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/{{ item.1 }}"
+  with_nested: 
+    - "{{ ordererorgs | union(peerorgs) | union(caorgs) }}"
+    - ["msp/admincerts/cert.pem", "admin/msp/admincerts/cert.pem"]
+
+- name: 
+  file:
+    path: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item.org }}/orderers/{{ item.name }}"
+    state: directory
+  with_items: "{{ orderers }}"
 
 - name: Create core.yml file for every peer
   template:
     src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/core.j2"
-    dest: "{{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}/core.yaml"
+    dest: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item.org }}/core.yaml"
   with_items: "{{ peers }}"
 
 - name: Create config tx file
   template:
     src: "{{ playbook_dir }}/../deploy_compose/certsetup/templates/configtx.j2"
     dest: "{{ fabricworkdir }}/configtx.yml"
+  when: inventory_hostname in groups['builders']
 
 - name: Create the gensis block and channel transaction
   shell: >-
@@ -122,29 +279,46 @@
     {{ fabricpath }}/build/bin/configtxgen -profile OrgChannel
     -outputCreateChannelTx keyfiles/businesschannel.tx -channelID businesschannel
   args:
-    chdir: "{{ fabricworkdir }}"
+    chdir: "{{ fabricworkdir }}/run"
+  when: inventory_hostname in groups['builders']
 
 - name: Define the anchor peer for organizations
   shell: >-
     export FABRIC_CFG_PATH={{ fabricworkdir }} &&
     {{ fabricpath }}/build/bin/configtxgen -profile OrgChannel
-    -outputAnchorPeersUpdate keyfiles/{{ item }}.anchor.tx
+    -outputAnchorPeersUpdate keyfiles/orgs/{{ item }}/anchor.tx
     -channelID businesschannel -asOrg {{ item }}
   args:
-    chdir: "{{ fabricworkdir }}"
+    chdir: "{{ fabricworkdir }}/run"
+  with_items: "{{ peerorgs }}"
+  when: inventory_hostname in groups['builders']
+
+- name: Pull genesis block, channel.tx from the builder machine
+  vars:
+    file: "{{ fabricworkdir }}/run/keyfiles/{{ item }}"
+  command: >-
+    scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
+    ssh_user }}@{{ hostvars[groups.builders.0].private_ip }}:{{ file }}"
+    "{{ file }}"
+  when: inventory_hostname not in groups['builders']
+  with_items: 
+    - "genesis.block"
+    - "businesschannel.tx"
+
+- name: Pull anchor.tx from the builder machine
+  vars:
+    file: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/anchor.tx"
+  command: >-
+    scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
+    ssh_user }}@{{ hostvars[groups.builders.0].private_ip }}:{{ file }}"
+    "{{ file }}"
+  when: inventory_hostname not in groups['builders']
   with_items: "{{ peerorgs }}"
 
-- name: Duplicate genesis and transaction block to each peer
+- name: Duplicate genesis and transaction block to each orderer directory
   shell: >-
-    cp {{ fabricworkdir }}/keyfiles/genesis.block
-    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }} &&
-    cp {{ fabricworkdir }}/keyfiles/businesschannel.tx
-    {{ fabricworkdir }}/keyfiles/{{ item.org }}/peers/{{ item.name }}
+    cp {{ fabricworkdir }}/run/keyfiles/genesis.block
+    {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.org }}
   args:
-    chdir: "{{ fabricworkdir }}"
-  with_items: "{{ peers }}"
-
-- name: Create a zip file of all certificates
-  archive:
-    path: "{{ fabricworkdir }}/keyfiles"
-    dest: "{{ fabricworkdir }}/certs.tgz"
+    chdir: "{{ fabricworkdir }}/run"
+  with_items: "{{ orderers }}"

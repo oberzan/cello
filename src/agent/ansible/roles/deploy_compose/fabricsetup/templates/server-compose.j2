@@ -21,9 +21,9 @@ services:
       - 4000:4000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /var/lib/docker:/var/lib/docker
+      #- /var/lib/docker:/var/lib/docker
       - {{ fabricworkdir }}/run/app/:/app/
       - {{ fabricworkdir }}/run/configs/:/configs/
-      - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/allorgs
+      - {{ fabricworkdir }}/run/keyfiles:/etc/hyperledger/keyfiles
       - {{ fabricworkdir }}/run/keyfiles/chaincode:/app/src/chaincode
 
