@@ -15,10 +15,11 @@
     allpeers: "{{ [] }}"
     allorgs: "{{ [] }}"
     cas: "{{ [] }}"
+    orderers: "{{ [] }}"
+    peers: "{{ [] }}"
     cals: "{{ cals + [{ 'name': item.value.cas,
-                        'host': item.key }] | default([]) }}"
-    orderers: "{{ [] }}"    
-    peerls: "{{ peerls + item.value.peers | default([]) }}"
+                        'host': item.key }] }}"
+    peerls: "{{ peerls + item.value.peers }}"
     ordererls: "{{ ordererls | default([]) + item.value.orderers | default([]) }}"
     kafkals: "{{ kafkals | default([]) + item.value.kafkas | default([]) }}"
   with_dict: "{{ fabric.network }}"
@@ -62,7 +63,7 @@
 - name: Get peer object list
   set_fact:
     peers: |
-      {{ peers | default([]) + [{'org':item.split('@')[1].split('.')[-1],
+      {{ peers + [{'org':item.split('@')[1].split('.')[-1],
         'name':item.split('@')[1],
         'hostname': item.split('@')[1].split('.')[0],
         'role':item.split('@')[0]}] }}
@@ -100,12 +101,13 @@
 
 - name: Create orgs directories
   file:
-    path: "{{ fabricworkdir }}/run/{{ item.0 }}/orgs/{{ item.1.org }}"
+    path: "{{ fabricworkdir }}/run/{{ item.0 }}/orgs/{{ item.1 }}"
     recurse: yes
     state: directory
+    mode: "g+s"
   with_nested: 
-    - ["keyfiles", "cas"]
-    - "{{ cas }}"
+    - ["keyfiles"]
+    - "{{ caorgs | union(peerorgs) | union(ordererorgs) }}"
 
 - name: Pull certificates from the builder machine
   vars:
@@ -120,84 +122,87 @@
 - name: Enroll ordererorg CA admins
   vars:
     ordererorg_ca: "{{ allcas | selectattr('org', 'equalto', item) | first }}"
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client enroll -d
-                -u https://{{ ordererorg_ca.name }}.admin:adminpw@{{ ordererorg_ca.name }}:7054"
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client enroll -d
+                -u https://{{ ordererorg_ca.name }}.admin:adminpw@{{ ordererorg_ca.name }}:7054;
+              chmod g+rwx $FABRIC_CA_CLIENT_HOME/msp'"
   with_items: "{{ ordererorgs }}"
 
 
 
 - name: Register orderers
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item.org }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client register -d 
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item.org }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item.org }}-ca-chain.pem;
+              fabric-ca-client register -d 
                 --id.name {{ item.name }}
                 --id.secret ordererpw
-                --id.type orderer"
+                --id.type orderer'"
   with_items: "{{ orderers }}"
 
 - name: Register orderer admins
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client register -d 
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client register -d 
                 --id.name admin-{{ item }}
                 --id.secret adminpw
-                --id.attrs 'admin=true:ecert'"
+                --id.attrs \'admin=true:ecert\''"
   #when: inventory_hostname in groups['builders']
   with_items: "{{ allorderers | map(attribute='org') | list | unique | intersect(caorgs) }}"
 
 - name: Enroll peer CA admins
   vars:
     peerorg_ca: "{{ allcas | selectattr('org', 'equalto', item) | first }}"
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client enroll -d
-                -u https://{{ peerorg_ca.name }}.admin:adminpw@{{ peerorg_ca.name }}:7054"
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client enroll -d
+                -u https://{{ peerorg_ca.name }}.admin:adminpw@{{ peerorg_ca.name }}:7054;
+              chmod g+rwx $FABRIC_CA_CLIENT_HOME/msp'"
   with_items: "{{ peerorgs }}"
 
 - name: Register peers
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item.org }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item.org }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client register 
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item.org }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item.org }}-ca-chain.pem;
+              fabric-ca-client register -d 
                 --id.name {{ item.name }}
                 --id.secret peerpw
                 --id.affiliation {{ item.org }}
-                --id.type peer"
+                --id.type peer'"
   with_items: "{{ peers }}"
 
 - name: Registering admin with CA
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client register
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client register -d 
                 --id.name admin-{{ item }}
                 --id.secret adminpw
                 --id.affiliation {{ item }}
-                --id.attrs 'hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert'"
+                --id.attrs \'hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert\''"
   with_items: "{{ allpeers | map(attribute='org') | list | unique | intersect(caorgs) }}"
 
 - name: Registering user with CA
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/cas/orgs/{{ item }}"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client register
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client register -d 
                 --id.name user-{{ item }}
-                --id.secret userpw"
+                --id.secret userpw'"
   with_items: "{{ allpeers | map(attribute='org') | list | unique | intersect(caorgs) }}"
 
 - name: Get CA certs
   environment:
-    #FABRIC_CA_CLIENT_HOME: {{ fabricworkdir }}/run/cas/orgs/{{ item.0.org }}
     FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client getcacert
-                  -u https://{{ allcas | selectattr('org', 'equalto', item) | map(attribute='name') | first }}:7054 
-                  -M {{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/msp"
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client getcacert
+                -u https://{{ allcas | selectattr('org', 'equalto', item) | map(attribute='name') | first }}:7054 
+                -M {{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/msp'"
   with_items: "{{ allorgs }}"
 
 - name: Create tlscacerts, tlsintermediatecerts and admincerts directories
@@ -207,7 +212,7 @@
     path: "{{ org_msp_dir }}/{{ item.1 }}"
     state: directory
   with_nested: 
-    - "{{ allorgs }}"
+    - "{{ ordererorgs | union(peerorgs) }}"
     - ["tlscacerts", "tlsintermediatecerts", "admincerts"]
 
 - name: Create admin/msp/admincerts directory
@@ -220,7 +225,7 @@
   command: "cp -a {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/msp/{{ item.1 }}/. 
               {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/msp/tls{{ item.1 }}/"
   with_nested: 
-    - "{{ allorgs }}" #ordererorgs | union(peerorgs)
+    - "{{ ordererorgs | union(peerorgs) }}" #ordererorgs | union(peerorgs)
     - ["cacerts", "intermediatecerts"]
 
 ### Currently blocked by https://jira.hyperledger.org/browse/FAB-3752
@@ -228,13 +233,13 @@
 - name: Enroll CA org admins
   vars:
     peerorg_ca: "{{ allcas | selectattr('org', 'equalto', item) | first }}"
-  environment:
-    FABRIC_CA_CLIENT_HOME: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/admin"
-    FABRIC_CA_CLIENT_TLS_CERTFILES: "{{ fabricworkdir }}/run/keyfiles/{{ item }}-ca-chain.pem"
-  command: "{{ fabriccapath }}/bin/fabric-ca-client enroll
-                -u https://admin-{{ item }}:adminpw@{{ peerorg_ca.name }}:7054"
+  command: "docker exec -u {{ fabric.ssh_user }} ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }}/admin;
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client enroll -d
+                -u https://admin-{{ item }}:adminpw@{{ peerorg_ca.name }}:7054'" #TO REMOVE
   with_items: "{{ ordererorgs | union(peerorgs) | union(caorgs) }}"
-###
+### TO REMOVE
 - name: Pull admin certs from the builder machine
   vars:
     file: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}"

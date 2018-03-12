@@ -1,3 +1,11 @@
+- name: Figuring out the OS release
+  shell: lsb_release -cs
+  register: rawrelease
+
+- name: Setup variables
+  set_fact:
+    osrelease: "{{ rawrelease.stdout }}"
+
 - name: Install apt-transport-https if necessary.
   apt:
     name: apt-transport-https
@@ -6,20 +14,27 @@
     - apt-transport-https
     - ca-certificates
     - curl
+- name: Add Docker offical GPG key
+  shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 
-- name: Add Docker apt key.
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
-    state: present
-  register: add_repository_key
-  ignore_errors: true
-
-- name: Add Docker repository.
+- name: Add docker-ce repository
   apt_repository:
-    repo: "deb https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable"
+    repo: "deb [arch={{ arch }}] https://download.docker.com/linux/ubuntu {{ osrelease }} stable"
     state: present
-    update_cache: yes
+
+# - name: Add Docker apt key.
+#   apt_key:
+#     url: https://download.docker.com/linux/ubuntu/gpg
+#     id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+#     state: present
+#   register: add_repository_key
+#   ignore_errors: true
+
+# - name: Add Docker repository.
+#   apt_repository:
+#     repo: "deb https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable"
+#     state: present
+#     update_cache: yes
 
 - name: Install latest git if necessary.
   apt:
@@ -30,7 +45,6 @@
   apt:
     name: "{{ item }}"
   with_items:
-    - ['docker-ce', 'python-dev', 'python-pip', 'libtool', 'libltdl-dev']
-    - ['net-tools', 'netcat-openbsd', 'autoconf', 'automake']
-    - ['make', 'g++', 'unzip', 'build-essential']
+    - ['docker-ce', 'python-pip', 'libtool', 'libltdl-dev']
+    - ['autoconf']
 

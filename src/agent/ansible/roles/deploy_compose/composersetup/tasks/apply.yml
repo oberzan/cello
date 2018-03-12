@@ -228,7 +228,7 @@
   vars:
     DEBUG: "composer:*"
   shell:
-    composer card import -f user-{{ item }}@marbles-network.card
+    composer card import -f BNadmin-{{ item }}@marbles-network.card
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"

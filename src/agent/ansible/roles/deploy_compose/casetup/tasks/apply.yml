@@ -9,7 +9,7 @@
     cals: "{{ [] }}"
     current_host: "{{ hostvars[inventory_hostname].inter_name }}"
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
-    full_tag: "{{ rawarch.stdout + '-' + fabric.tag }}"
+    full_tag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
 
 - name: Create component list
   set_fact:
@@ -24,30 +24,42 @@
   with_items: "{{ fabric.network[current_host].cas | default([]) }}"
 
 - name: Make sure that working directory is clean
-  become: true
   file:
-    path: "{{ fabricworkdir }}/run"
-    state: "absent"
-
-- name: Make sure that working directory is clean
-  file:
-    path: "{{ fabricworkdir }}/run/{{ item }}"
-    recurse: yes
-    state: "directory"
+    path: "{{ fabricworkdir }}/run/keyfiles"
+    state: "{{ item }}"
   with_items:
-    - "keyfiles"
-    - "cas"
+    - "absent"
+    - "directory"
 
-- name: Create rca-compose files
+# - name: Make sure that working directory is clean
+#   file:
+#     path: "{{ fabricworkdir }}/run/{{ item }}"
+#     recurse: yes
+#     state: "directory"
+#   with_items:
+#     - "keyfiles"
+#     - "cas"
+
+- name: Create compose files
   template:
     src: "{{ playbook_dir }}/../deploy_compose/casetup/templates/{{ item }}.j2"
     dest: "{{ fabricworkdir }}/run/{{ item }}.yml"
   with_items:
     - "rca-compose"
     - "ica-compose"
+    - "ca-cli-compose"
 
-- name: Start RCAs
+- name: Start CAs and cli
   command: "docker-compose -p {{ env }}.{{ item }} -f {{ fabricworkdir }}/run/{{ item }}.yml up -d"
   with_items:
     - "rca-compose"
     - "ica-compose"
+    - "ca-cli-compose"
+
+- name: Create component list
+  set_fact:
+    uid: "{{ ansible_env.XDG_RUNTIME_DIR | regex_replace('^.*/') }}"
+
+- name: Start CAs and cli
+  command: docker exec ca-cli bash -c "
+              useradd {{ fabric.ssh_user }} -u {{ uid }}"

@@ -127,7 +127,7 @@
     scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
     ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/images/fabricimages.tar"
     "{{ fabricworkdir }}/fabricimages.tar"
-  when: fabric.baseimage_tag == '' and inventory_hostname not in groups['builders']
+  when: fabric.helper_tag == '' and inventory_hostname not in groups['builders']
 
 - name: Pull container version file from the build machine
   command: >-
@@ -214,7 +214,7 @@
 
 - name: Pull necessary container images from the docker hub
   command: "docker pull {{ fabric.repo.url }}{{ item.name }}"
-  when: item.flag | length > 0 and fabric.baseimage_tag | length > 0
+  when: item.flag | length > 0 and fabric.helper_tag | length > 0
   with_items:
     - { name: "fabric-ca:{{ helpertag }}", flag: "{{ cas }}" }
     - { name: "fabric-zookeeper:{{ helpertag }}", flag: "{{ zookeepers }}" }

@@ -29,7 +29,7 @@
 - name: Add docker targets if absent
   set_fact:
     target: "{{ target }},docker"
-  when: fabric.baseimage_tag|length == 0 and 'docker' not in target
+  when: fabric.helper_tag|length == 0 and 'docker' not in target
 
 - name: Make targets
   shell: "make {{ item }} >> {{ gopath }}/build.log"
@@ -64,4 +64,4 @@
 - name: Set project version and container tags
   set_fact:
     baseimage_tag: "{{ rawarch.stdout }}-{{ project_version }}"
-    helper_tag: "{{ fabric.helper_tag }}"
+    helper_tag: "{{ rawarch.stdout }}-{{ fabric.helper_tag }}"

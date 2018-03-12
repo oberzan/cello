@@ -3,16 +3,11 @@
   shell: uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'
   register: rawarch
 
-- name: Figuring out the OS release
-  shell: lsb_release -cs
-  register: rawrelease
-
 - name: Setup variables
   set_fact:
     goroot: "/opt/go"
     gopath: "/opt/gopath"
     arch: "{{ rawarch.stdout}}"
-    osrelease: "{{ rawrelease.stdout }}"
 
 - name: Ensure gopath exists
   file:

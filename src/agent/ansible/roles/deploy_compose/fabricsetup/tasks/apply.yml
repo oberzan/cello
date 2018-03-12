@@ -27,8 +27,8 @@
     allorderers: "{{ [] }}"
     clihost: ""
     filterstr: ""
-    full_tag: "{{ rawarch.stdout + '-' + fabric.tag }}"
-    baseimagetag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
+    full_tag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
+    baseimagetag: "{{ rawarch.stdout + '-' + fabric.helper_tag }}"
 
 - set_fact:
     server: "{{ fabric.network[current_host].server | default([]) }}"
@@ -140,30 +140,30 @@
     scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
     ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/images/fabricimages.tar"
     "{{ fabricworkdir }}/fabricimages.tar"
-  when: fabric.tag == '' and inventory_hostname not in groups['builders']
+  when: fabric.baseimage_tag == '' and inventory_hostname not in groups['builders']
 
 - name: Pull container version file from the build machine
   command: >-
     scp -i "/opt/gopath/id_rsa" -r -o "StrictHostKeyChecking no" "{{ fabric.
     ssh_user }}@{{ hostvars[groups['builders'][0]].private_ip }}:{{ fabricworkdir }}/images/VERSION"
     "{{ fabricworkdir }}/VERSION"
-  when: fabric.tag == ''
+  when: fabric.baseimage_tag == ''
 
 #- name: Load all the docker images created by build machine
 #  shell: >-
 #    docker load -i {{ fabricworkdir }}/fabricimages.tar
-#  when: fabric.tag == '' and inventory_hostname not in groups['builders']
+#  when: fabric.baseimage_tag == '' and inventory_hostname not in groups['builders']
 
 - name: Find out the image tags
   slurp:
     src: "{{ fabricworkdir }}/VERSION"
   register: project_version
-  when: fabric.tag == ''
+  when: fabric.baseimage_tag == ''
 
 - name: Set image tag from the file
   set_fact:
     full_tag: "{{ arch + '-' + (project_version['content'] | b64decode) }}"
-  when: fabric.tag == ''
+  when: fabric.baseimage_tag == ''
   
 
 - name: Process admin key files
@@ -210,23 +210,23 @@
 - name: Login to docker repo
   command: "docker login {{ fabric.repo.url }} -u {{ fabric.repo.username }} -p {{ fabric.repo.password }}"
   when: >
-    fabric.tag | length > 0 and
+    fabric.baseimage_tag | length > 0 and
     fabric.repo.username | default("") | length > 0 and
     fabric.repo.password | default("") | length > 0
 
 - name: Pull container images from the docker hub
   command: "docker pull {{ fabric.repo.url }}{{ item }}"
-  when: fabric.tag | length > 0
+  when: fabric.baseimage_tag | length > 0
   with_items:
-    - "hyperledger/fabric-tools:{{ full_tag }}"
-    - "hyperledger/fabric-ccenv:{{ full_tag }}"
-    - "hyperledger/fabric-kafka:{{ baseimagetag }}"
-    - "hyperledger/fabric-zookeeper:{{ baseimagetag }}"
-    - "hyperledger/fabric-ca-peer:{{ full_tag }}"
-    - "hyperledger/fabric-ca-orderer:{{ full_tag }}"
-    - "hyperledger/fabric-couchdb:{{ baseimagetag }}"
-    - "hyperledger/fabric-baseimage:{{ baseimagetag }}"
-    - "hyperledger/fabric-baseos:{{ baseimagetag }}"
+    - "fabric-tools:{{ full_tag }}"
+    - "fabric-ccenv:{{ full_tag }}"
+    - "fabric-kafka:{{ baseimagetag }}"
+    - "fabric-zookeeper:{{ baseimagetag }}"
+    - "fabric-ca-peer:{{ full_tag }}"
+    - "fabric-ca-orderer:{{ full_tag }}"
+    - "fabric-couchdb:{{ baseimagetag }}"
+    - "fabric-baseimage:{{ baseimagetag }}"
+    - "fabric-baseos:{{ baseimagetag }}"
     #- "node:8.9"
   tags: "pullimages"
 

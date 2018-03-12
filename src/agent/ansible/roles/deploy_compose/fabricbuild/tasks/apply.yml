@@ -76,12 +76,12 @@
 #   register: rawtag
 - name: Download fabric docker images
   include_tasks: "download.yml"
-  when: fabric.baseimage_tag|length > 0
+  when: fabric.helper_tag|length > 0
   tag: "downloadartifacts"
 
 - name: build fabric artifacts
   include_tasks: "build.yml"
-  when: fabric.baseimage_tag|length == 0
+  #when: fabric.helper_tag|length == 0
   tags: "buildartifacts"
 
 - name: Setup hyperledger directory
@@ -120,7 +120,7 @@
   args:
     chdir: "{{ fabricpath }}"
   register: rawimages
-  when: fabric.baseimage_tag == '' and inventory_hostname in groups['builders']
+  when: fabric.helper_tag == '' and inventory_hostname in groups['builders']
 
 - name: Save all the docker images
   shell: >-
@@ -128,7 +128,7 @@
     {{ rawimages.stdout_lines | join(' ') }}
   args:
     chdir: "{{ gopath }}"
-  when: fabric.baseimage_tag == '' and 
+  when: fabric.helper_tag == '' and 
         rawimages is defined and 
         rawimages.stdout_lines|length > 0
   tags: "saveimages"

@@ -54,12 +54,12 @@ fabric: {
     }
   },
 
-  tag: "1.1.0-rc1",
-  baseimage_tag: "0.4.6",
+  baseimage_tag: "1.1.0-rc1",
+  helper_tag: "0.4.6",
 
   # Composer settings
   composer_tag: "0.18.0",
-  nodejs_version: "8.9.4",
+  nodejs_version: "8.10.0",
 
   repo: {
     # the url defines docker hub project access point
@@ -72,6 +72,6 @@ fabric: {
     # locations to download fabric binaries. This url should point to a
     # compressed such as tar or zip file which contains necessary binaries
     # such as configtxgen, configtxlator, cryptogen etc.
-    #bin: ""
+    bin: ""
   }
 }
