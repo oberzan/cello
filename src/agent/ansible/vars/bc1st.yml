@@ -54,12 +54,12 @@ fabric: {
     }
   },
 
-  baseimage_tag: "1.1.0-rc1",
-  helper_tag: "0.4.6",
+  baseimage_tag: "1.1.0",
+  helper_tag: "0.4.7",
 
   # Composer settings
-  composer_tag: "0.18.0",
-  nodejs_version: "8.10.0",
+  composer_tag: "0.19.1",
+  nodejs_version: "8.11.1",
 
   repo: {
     # the url defines docker hub project access point

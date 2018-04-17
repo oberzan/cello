@@ -31,7 +31,7 @@ var joinChannel = async function(channel_name, peers, username, org_name) {
 		logger.info('Calling peers in organization "%s" to join the channel', org_name);
 
 		// first setup the client for this org
-		var client = await helper.getClientForOrg(org_name, username);
+		var client = await helper.getClientForOrg(org_name, 'Jim1');
     
 		logger.debug('Successfully got the fabric client for the organization "%s"', org_name);
 		var channel = client.getChannel(channel_name);
@@ -41,25 +41,25 @@ var joinChannel = async function(channel_name, peers, username, org_name) {
 			throw new Error(message);
 		}
 
-    //peers = peers.map(peer => client.newPeer('grpc://'+peer+':7051'));
+		//peers = peers.map(peer => client.newPeer('grpc://'+peer+':7051'));
 
-    //channel.addPeer();
-    logger.debug(channel);
+		//channel.addPeer();
+		logger.debug(channel);
 		// next step is to get the genesis_block from the orderer,
 		// the starting point for the channel that we want to join
 		let request = {
 			txId : 	client.newTransactionID(true) //get an admin based transactionID
 		};
-    logger.debug("Get genesis block");
+    	logger.debug("Get genesis block");
 		let genesis_block = await channel.getGenesisBlock(request);
-    logger.debug(33);
+    	logger.debug(33);
 		// tell each peer to join and wait for the event hub of each peer to tell us
 		// that the channel has been created on each peer
 		var promises = [];
 		var block_registration_numbers = [];
 		let event_hubs = client.getEventHubsForOrg(org_name);
 		event_hubs.forEach((eh) => {
-      logger.debug(eh);
+      		logger.info(eh);
 			let configBlockPromise = new Promise((resolve, reject) => {
 				let event_timeout = setTimeout(() => {
 					let message = 'REQUEST_TIMEOUT:' + eh._ep._endpoint.addr;
@@ -67,9 +67,9 @@ var joinChannel = async function(channel_name, peers, username, org_name) {
 					eh.disconnect();
 					reject(new Error(message));
 				}, 60000);
-        logger.debug('EVENT_HUB_2');
+				logger.info('EVENT_HUB_2');
 				let block_registration_number = eh.registerBlockEvent((block) => {
-          logger.debug('BLOCK: ' + block);
+          			logger.info('BLOCK: ' + block);
 					clearTimeout(event_timeout);
 					// a peer may have more than one channel so
 					// we must check that this block came from the channel we
@@ -106,7 +106,7 @@ var joinChannel = async function(channel_name, peers, username, org_name) {
 			txId: client.newTransactionID(true), //get an admin based transactionID
 			block: genesis_block
 		};
-    logger.debug('Joining channel ' + channel_name);
+    	logger.debug('Joining channel ' + channel_name);
 		let join_promise = channel.joinChannel(join_request);
 		promises.push(join_promise);
 		let results = await Promise.all(promises);

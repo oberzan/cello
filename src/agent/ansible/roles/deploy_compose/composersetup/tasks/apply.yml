@@ -161,75 +161,75 @@
   vars:
     DEBUG: "composer:*"
   shell: 
-    composer card import -f PeerAdmin@{{ env }}-{{ item }}.card -n PeerAdmin@{{ env }}-{{ item }}
+    composer card import -f PeerAdmin@{{ env }}-{{ item }}.card -c PeerAdmin@{{ env }}-{{ item }}
   args:
     chdir: "{{ fabricworkdir }}/run/composer/"
   with_items: "{{ peerorgs }}"
 
 ################################
 
-- name: Composer runtime install
-  vars:
-    DEBUG: "composer:*"
-  shell: 
-    composer runtime install -c PeerAdmin@{{ env }}-{{ item }} -n marbles-network
-  args:
-    chdir: "{{ fabricworkdir }}/run/composer/"
-  with_items: "{{ peerorgs }}"
+# - name: Composer runtime install
+#   vars:
+#     DEBUG: "composer:*"
+#   shell: 
+#     composer runtime install -c PeerAdmin@{{ env }}-{{ item }} -n marbles-network
+#   args:
+#     chdir: "{{ fabricworkdir }}/run/composer/"
+#   with_items: "{{ peerorgs }}"
 
-- name: Composer create identities
-  vars:
-    DEBUG: "composer:*"
-  shell:
-    composer identity request 
-      -c PeerAdmin@{{ env }}-{{ item }}
-      -u ca1.{{ item }}.admin -s adminpw 
-      -d BNadmin-{{ item }}
-  args:
-    chdir: "{{ fabricworkdir }}/run/composer/"
-  with_items: "{{ peerorgs }}"
+# - name: Composer create identities
+#   vars:
+#     DEBUG: "composer:*"
+#   shell:
+#     composer identity request 
+#       -c PeerAdmin@{{ env }}-{{ item }}
+#       -u ca1.{{ item }}.admin -s adminpw 
+#       -d BNadmin-{{ item }}
+#   args:
+#     chdir: "{{ fabricworkdir }}/run/composer/"
+#   with_items: "{{ peerorgs }}"
 
-- name: Copy marbles-network .bna folder
-  copy:
-    src: "{{ playbook_dir }}/composersetup/files/marbles-network.bna"
-    dest: "{{ fabricworkdir }}/run/composer/"
+# - name: Copy marbles-network .bna folder
+#   copy:
+#     src: "{{ playbook_dir }}/composersetup/files/marbles-network.bna"
+#     dest: "{{ fabricworkdir }}/run/composer/"
 
-- set_fact:
-    create_cmd: "{{ create_cmd | 
-                      default('composer network start --card PeerAdmin@' + env + '-' + peerorgs.0 + 
-                                ' --archiveFile marbles-network.bna 
-                                -o endorsementPolicyFile=endorsement-policy.json')
-                        + ' --networkAdmin BNadmin-' + item + ' --networkAdminCertificateFile BNadmin-' + item + '/ca1.'+ item +'.admin-pub.pem' }}"
-  with_items: "{{ peerorgs }}"
+# - set_fact:
+#     create_cmd: "{{ create_cmd | 
+#                       default('composer network start --card PeerAdmin@' + env + '-' + peerorgs.0 + 
+#                                 ' --archiveFile marbles-network.bna 
+#                                 -o endorsementPolicyFile=endorsement-policy.json')
+#                         + ' --networkAdmin BNadmin-' + item + ' --networkAdminCertificateFile BNadmin-' + item + '/ca1.'+ item +'.admin-pub.pem' }}"
+#   with_items: "{{ peerorgs }}"
 
-- name: Composer network start
-  vars:
-    DEBUG: "composer:*"
-  shell: "{{ create_cmd }}"
-  args:
-    chdir: "{{ fabricworkdir }}/run/composer/"
+# - name: Composer network start
+#   vars:
+#     DEBUG: "composer:*"
+#   shell: "{{ create_cmd }}"
+#   args:
+#     chdir: "{{ fabricworkdir }}/run/composer/"
 
-- name: Composer create user cards
-  vars:
-    DEBUG: "composer:*"
-    user: BNadmin-{{ item }}
-  shell:
-    composer card create 
-      -p connection-{{ item }}.yml 
-      -u {{ user }} 
-      -n marbles-network 
-      -c {{ user }}/ca1.{{ item }}.admin-pub.pem 
-      -k {{ user }}/ca1.{{ item }}.admin-priv.pem
-  args:
-    chdir: "{{ fabricworkdir }}/run/composer/"
-  with_items: "{{ peerorgs }}"
+# - name: Composer create user cards
+#   vars:
+#     DEBUG: "composer:*"
+#     user: BNadmin-{{ item }}
+#   shell:
+#     composer card create 
+#       -p connection-{{ item }}.yml 
+#       -u {{ user }} 
+#       -n marbles-network 
+#       -c {{ user }}/ca1.{{ item }}.admin-pub.pem 
+#       -k {{ user }}/ca1.{{ item }}.admin-priv.pem
+#   args:
+#     chdir: "{{ fabricworkdir }}/run/composer/"
+#   with_items: "{{ peerorgs }}"
 
-- name: Composer import user cards
-  vars:
-    DEBUG: "composer:*"
-  shell:
-    composer card import -f BNadmin-{{ item }}@marbles-network.card
-  args:
-    chdir: "{{ fabricworkdir }}/run/composer/"
-  with_items: "{{ peerorgs }}"
+# - name: Composer import user cards
+#   vars:
+#     DEBUG: "composer:*"
+#   shell:
+#     composer card import -f BNadmin-{{ item }}@marbles-network.card
+#   args:
+#     chdir: "{{ fabricworkdir }}/run/composer/"
+#   with_items: "{{ peerorgs }}"
 
