@@ -6,7 +6,7 @@ FABRIC_CA_GIT_URL: "http://gerrit.hyperledger.org/r/fabric-ca"
 # The gerrit patch set reference, should be automatically set by gerrit
 #GERRIT_REFSPEC: "refs/tags/v1.0.5" # 1.0.5
 #GERRIT_REFSPEC: '' # Head
-GERRIT_REFSPEC: "refs/tags/v1.1.0-rc1"
+GERRIT_REFSPEC: "refs/tags/v1.1.0"
 
 # This variable defines fabric network attributes
 fabric: {
