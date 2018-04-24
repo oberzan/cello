@@ -34,7 +34,7 @@ cluster: {
   flannel_repo: "https://github.com/coreos/flannel/releases/download/v0.10.0/flannel-v0.10.0-linux-amd64.tar.gz",
   etcd_repo: "https://github.com/coreos/etcd/releases/download/v3.2.2/etcd-v3.2.2-linux-amd64.tar.gz",
   k8s_repo: "https://storage.googleapis.com/kubernetes-release/release/v1.9.1/bin/linux/amd64/",
-  go_repo: "https://dl.google.com/go/go1.9.2.linux-amd64.tar.gz",
+  go_repo: "https://dl.google.com/go/go1.10.1.linux-amd64.tar.gz",
 
-  go_ver: "1.10"
+  go_ver: "1.10.1"
 }
