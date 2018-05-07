@@ -104,7 +104,7 @@
     path: "{{ fabricworkdir }}/run/{{ item.0 }}/orgs/{{ item.1 }}"
     recurse: yes
     state: directory
-    mode: "g+s"
+    mode: "g+srwx"
   with_nested: 
     - ["keyfiles"]
     - "{{ caorgs | union(peerorgs) | union(ordererorgs) }}"
@@ -263,6 +263,9 @@
     path: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item.org }}/orderers/{{ item.name }}"
     state: directory
   with_items: "{{ orderers }}"
+
+- set_fact:
+    project_version: "{{ fabric.baseimage_tag }}"
 
 - name: Create core.yml file for every peer
   template:

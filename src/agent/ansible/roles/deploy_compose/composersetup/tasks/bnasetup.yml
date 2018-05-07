@@ -1,0 +1,70 @@
+---
+- name: Copy .bna folder
+  copy:
+    src: "{{ playbook_dir }}/composersetup/files/{{ network }}.bna"
+    dest: "{{ fabricworkdir }}/run/composer/"
+
+- name: Composer network install
+  vars:
+    DEBUG: "composer:*"
+  shell: 
+    composer network install -c PeerAdmin@{{ env }}-{{ item }} -a {{ network }}.bna
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+  register: cmd_result
+  failed_when: "cmd_result.rc != 0 and 'is already installed' not in cmd_result.stdout"
+
+- name: Composer create identities
+  vars:
+    DEBUG: "composer:*"
+  shell:
+    composer identity request 
+      -c PeerAdmin@{{ env }}-{{ item }}
+      -u ca1.{{ item }}.admin -s adminpw 
+      -d BNadmin-{{ item }}
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+
+- set_fact:
+    create_cmd: "{{ create_cmd | 
+                      default('composer network start 
+                                -c PeerAdmin@' + env + '-' + peerorgs.0 + '
+                                -n '+ network + ' 
+                                -V 0.0.1 
+                                -o endorsementPolicyFile=endorsement-policy.json')
+                        + ' -A BNadmin-' + item + 
+                          ' -C BNadmin-' + item + '/ca1.'+ item +'.admin-pub.pem' }}"
+  with_items: "{{ peerorgs }}"
+
+- name: Composer network start
+  vars:
+    DEBUG: "composer:*"
+  shell: "{{ create_cmd }}"
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+
+- name: Composer create user cards
+  vars:
+    DEBUG: "composer:*"
+    user: BNadmin-{{ item }}
+  shell:
+    composer card create 
+      -p connection-{{ item }}.yml 
+      -u {{ user }} 
+      -n {{ network }}
+      -c {{ user }}/ca1.{{ item }}.admin-pub.pem 
+      -k {{ user }}/ca1.{{ item }}.admin-priv.pem
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"
+
+- name: Composer import user cards
+  vars:
+    DEBUG: "composer:*"
+  shell:
+    composer card import -f BNadmin-{{ item }}@{{ network }}.card
+  args:
+    chdir: "{{ fabricworkdir }}/run/composer/"
+  with_items: "{{ peerorgs }}"

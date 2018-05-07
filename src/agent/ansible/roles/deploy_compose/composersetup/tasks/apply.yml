@@ -11,6 +11,9 @@
     allpeers: "{{ [] }}"
     allcas: "{{ [] }}"
     allorderers: "{{ [] }}"
+    localhome: "/home/{{ fabric.ssh_user }}/.composer"
+    network: "{{ fabric.bna_name | default('') }}"
+  tags: [bnasetup, startupplayground]
 
 - name: Get peer container list
   set_fact:
@@ -19,6 +22,7 @@
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ fabric.network[hostvars[inventory_hostname].inter_name].peers | default([]) }}"
+  tags: "bnasetup"
 
 - name:
   set_fact:
@@ -51,27 +55,39 @@
 - name: Get the peer org list
   set_fact:
     peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
+  tags: "bnasetup"
+
+- name: Make sure that working directory exists
+  file:
+    path: "{{ localhome }}"
+    state: "directory"
+
+- name: Pull composer container images from the docker hub
+  command: "docker pull {{ fabric.repo.url }}{{ item }}"
+  with_items:
+    - "composer-cli:{{ fabric.composer_tag }}"
+    - "composer-playground:{{ fabric.composer_tag }}"
+  tags: "pullcomposerimages"
+
+# - name: Check if PeerAdmin card is already imported
+#   stat:
+#     path: "{{ localhome }}/cards/PeerAdmin@{{ env }}-{{ peerorgs[0] }}"
+#   register: peeradmin
 
 - name: Create run/composer directory
   file:
     path: "{{ fabricworkdir }}/run/composer"
     state: "directory"
 
-- name: Download nvm install.sh
-  get_url:
-    url: https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh
-    dest: "{{ fabricworkdir }}/run/composer/install.sh"
-    mode: 0744
+# - include_tasks: setup-Debian.yml
+#   when: ansible_os_family == 'Debian'
 
-- include_tasks: setup-Debian.yml
-  when: ansible_os_family == 'Debian'
-
-- include_tasks: setup-RedHat.yml
-  when: ansible_os_family == 'RedHat'
+# - include_tasks: setup-RedHat.yml
+#   when: ansible_os_family == 'RedHat'
 
 - name: Set node source
   shell: |
-    curl https://raw.githubusercontent.com/creationix/nvm/v0.33.8/install.sh | bash
+    curl https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
   args:
     warn: no
 
@@ -81,8 +97,8 @@
   shell: |
     . "$NVM_DIR/nvm.sh"
     . "$NVM_DIR/bash_completion"
-    nvm install 8.9.4
-    nvm use 8.9.4
+    nvm install {{ fabric.nodejs_version }}
+    nvm use {{ fabric.nodejs_version }}
   args:
     executable: /bin/bash
   no_log: true
@@ -95,23 +111,24 @@
 - name: Install composer npm packages globally.
   environment:
     NVM_DIR: ~/.nvm
-    PATH: ~/.nvm/versions/node/v8.9.4/bin:{{ ansible_env.PATH }}
+    PATH: ~/.nvm/versions/node/v{{ fabric.nodejs_version }}/bin:{{ ansible_env.PATH }}
   npm:
     name: "{{ item }}"
     version: "{{ fabric.composer_tag }}"
     global: yes
   with_items:
     - composer-cli
-    - generator-hyperledger-composer
     - composer-rest-server
+    - composer-playground
+#    - generator-hyperledger-composer
 
-- name: Install "yo" node.js package globally.
-  environment:
-    PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.4/bin:{{ ansible_env.PATH }}
-  npm:
-    name: yo
-    version: '2.0.1'
-    global: yes
+# - name: Install "yo" node.js package globally.
+#   environment:
+#     PATH: /home/{{ fabric.ssh_user }}/.nvm/versions/node/v8.9.4/bin:{{ ansible_env.PATH }}
+#   npm:
+#     name: yo
+#     version: '2.0.1'
+#     global: yes
 
 - name:
   template:
@@ -168,68 +185,16 @@
 
 ################################
 
-# - name: Composer runtime install
-#   vars:
-#     DEBUG: "composer:*"
-#   shell: 
-#     composer runtime install -c PeerAdmin@{{ env }}-{{ item }} -n marbles-network
-#   args:
-#     chdir: "{{ fabricworkdir }}/run/composer/"
-#   with_items: "{{ peerorgs }}"
+- include_tasks: bnasetup.yml
+  when: network | length > 0
+  tags: "bnasetup"
 
-# - name: Composer create identities
-#   vars:
-#     DEBUG: "composer:*"
-#   shell:
-#     composer identity request 
-#       -c PeerAdmin@{{ env }}-{{ item }}
-#       -u ca1.{{ item }}.admin -s adminpw 
-#       -d BNadmin-{{ item }}
-#   args:
-#     chdir: "{{ fabricworkdir }}/run/composer/"
-#   with_items: "{{ peerorgs }}"
-
-# - name: Copy marbles-network .bna folder
-#   copy:
-#     src: "{{ playbook_dir }}/composersetup/files/marbles-network.bna"
-#     dest: "{{ fabricworkdir }}/run/composer/"
-
-# - set_fact:
-#     create_cmd: "{{ create_cmd | 
-#                       default('composer network start --card PeerAdmin@' + env + '-' + peerorgs.0 + 
-#                                 ' --archiveFile marbles-network.bna 
-#                                 -o endorsementPolicyFile=endorsement-policy.json')
-#                         + ' --networkAdmin BNadmin-' + item + ' --networkAdminCertificateFile BNadmin-' + item + '/ca1.'+ item +'.admin-pub.pem' }}"
-#   with_items: "{{ peerorgs }}"
-
-# - name: Composer network start
-#   vars:
-#     DEBUG: "composer:*"
-#   shell: "{{ create_cmd }}"
-#   args:
-#     chdir: "{{ fabricworkdir }}/run/composer/"
-
-# - name: Composer create user cards
-#   vars:
-#     DEBUG: "composer:*"
-#     user: BNadmin-{{ item }}
-#   shell:
-#     composer card create 
-#       -p connection-{{ item }}.yml 
-#       -u {{ user }} 
-#       -n marbles-network 
-#       -c {{ user }}/ca1.{{ item }}.admin-pub.pem 
-#       -k {{ user }}/ca1.{{ item }}.admin-priv.pem
-#   args:
-#     chdir: "{{ fabricworkdir }}/run/composer/"
-#   with_items: "{{ peerorgs }}"
-
-# - name: Composer import user cards
-#   vars:
-#     DEBUG: "composer:*"
-#   shell:
-#     composer card import -f BNadmin-{{ item }}@marbles-network.card
-#   args:
-#     chdir: "{{ fabricworkdir }}/run/composer/"
-#   with_items: "{{ peerorgs }}"
+- name: Start composer playground
+  command: >-
+    docker run -v {{ localhome }}:/home/composer/.composer
+    -v {{ fabricworkdir }}:{{ fabricworkdir }}
+    --name composer-playground --publish 8080:8080
+    --detach hyperledger/composer-playground:{{ fabric.composer_tag }}
+    --dns-search fabricnet
+  tags: "startupplayground"
 
