@@ -30,7 +30,7 @@
       {{ cas + [{ 'org':item.split('.')[-1],
         'name':item,
         'hostname':item.split('.')[0]}] }}
-  with_items: "{{ fabric.network[current_host].cas | default([]) }}"
+  with_items: "{{ fabric.network[inventory_hostname].cas | default([]) }}"
 
 - name: Get cas
   set_fact:
@@ -67,7 +67,7 @@
         'name':item.split('@')[1],
         'hostname': item.split('@')[1].split('.')[0],
         'role':item.split('@')[0]}] }}
-  with_items: "{{ fabric.network[current_host].peers | default([]) }}"
+  with_items: "{{ fabric.network[inventory_hostname].peers | default([]) }}"
 
 - name: Find all anchor peers
   set_fact:
@@ -84,7 +84,7 @@
       {{ orderers + [{'org':item.split('.')[-1],
         'name':item,
         'hostname':item.split('.')[0] }] }}
-  with_items: "{{ fabric.network[current_host].orderers | default([]) }}"
+  with_items: "{{ fabric.network[inventory_hostname].orderers | default([]) }}"
 
 - name: Sort lists
   set_fact:
