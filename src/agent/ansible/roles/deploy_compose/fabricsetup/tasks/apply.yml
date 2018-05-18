@@ -26,10 +26,12 @@
     allpeers: "{{ [] }}"
     allorderers: "{{ [] }}"
     clihost: ""
+  tags: "createchannel"
+
+- set_fact:
     filterstr: ""
     full_tag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
     baseimagetag: "{{ rawarch.stdout + '-' + fabric.helper_tag }}"
-  tags: "createchannel"
 
 - set_fact:
     server: "{{ fabric.network[current_host].server | default([]) }}"
