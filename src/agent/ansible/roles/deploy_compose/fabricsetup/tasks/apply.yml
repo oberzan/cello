@@ -29,6 +29,7 @@
     filterstr: ""
     full_tag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
     baseimagetag: "{{ rawarch.stdout + '-' + fabric.helper_tag }}"
+  tags: "createchannel"
 
 - set_fact:
     server: "{{ fabric.network[current_host].server | default([]) }}"
@@ -42,6 +43,7 @@
     zookeeperls: "{{ zookeeperls + item.value.zookeepers | default([]) }}"
     kafkals: "{{ kafkals + item.value.kafkas | default([]) }}"
   with_dict: "{{ fabric.network }}"
+  tags: "createchannel"
 
 - name: Sort component list
   set_fact:
@@ -74,6 +76,7 @@
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ peerls }}"
+  tags: "createchannel"
 
 - name: Get all ca object list
   set_fact:
@@ -81,6 +84,7 @@
       {{ allcas + [{ 'org':item.split('.')[-1],
         'name':item }] }}
   with_items: "{{ cals }}"
+  tags: "createchannel"
 
 - name: Get all orderer object list
   set_fact:
@@ -88,6 +92,7 @@
       {{ allorderers + [{ 'org':item.split('.')[-1],
                           'name':item }] }}
   with_items: "{{ ordererls }}"
+  tags: "createchannel"
 
 - name: Get peer container list
   set_fact:
@@ -97,6 +102,7 @@
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ fabric.network[current_host].peers | default([]) }}"
+  tags: "createchannel"
 
 - name: Get ca container list
   set_fact:
@@ -251,7 +257,7 @@
   tags: "fabricup"
 
 - pause:
-    seconds: 15
+    seconds: 10
 
 - name: Start fabric components
   command: "docker-compose -p {{ env }}.{{ item.name }} -f {{ fabricworkdir }}/run/{{ item.name }}.yml up -d"
@@ -383,6 +389,7 @@
 - set_fact:
     first_peer: "{{ allpeers | first }}"
     first_orderer: "{{ allorderers | first }}"
+  tags: "createchannel"
 
 - name: Create channel
   shell: 'docker exec {{ first_peer.name }} bash -c "
@@ -394,6 +401,7 @@
                                 --timeout 120
                                 --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem "'
   when: first_peer in peers
+  tags: "createchannel"
 
 - name: Fetch channel genesis block
   shell: 'docker exec {{ item.name }} bash -c "
@@ -404,6 +412,7 @@
                 --tls 
                 --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem"'
   with_items: "{{ peers }}"
+  tags: "createchannel"
 
 #- meta: end_play
 
@@ -412,6 +421,7 @@
             export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
             peer channel join -b /etc/hyperledger/keyfiles/{{ fabric.channel_name }}.block"'
   with_items: "{{ peers }}"
+  tags: "createchannel"
 
 - name: Update the anchor peers
   shell: 'docker exec -it {{ item.name }} bash -c "
@@ -423,3 +433,4 @@
                                 --cafile /etc/hyperledger/keyfiles/{{ item.org }}-ca-chain.pem"'
                                 #--clientauth"'
   with_items: "{{ anchor_peers | intersect(peers) }}"
+  tags: "createchannel"
