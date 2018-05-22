@@ -426,6 +426,9 @@
             export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
             peer channel join -b /etc/hyperledger/keyfiles/{{ fabric.channel_name }}.block"'
   with_items: "{{ peers }}"
+  register: task_result
+  failed_when: task_result.rc != 0 and
+               'LedgerID already exists' not in task_result.stderr
   tags: "createchannel"
 
 - name: Find all anchor peers
