@@ -7,7 +7,6 @@
   set_fact:
     cas: "{{ [] }}"
     cals: "{{ [] }}"
-    current_host: "{{ hostvars[inventory_hostname].inter_name }}"
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
     full_tag: "{{ rawarch.stdout + '-' + fabric.baseimage_tag }}"
 
@@ -21,7 +20,7 @@
     cas: |
       {{ cas + [{'org':item.split('.')[-1],
         'name':item }] }}
-  with_items: "{{ fabric.network[current_host].cas | default([]) }}"
+  with_items: "{{ fabric.network[inventory_hostname].cas | default([]) }}"
 
 - name: Make sure that working directory is clean
   file:

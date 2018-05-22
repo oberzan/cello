@@ -22,7 +22,7 @@
 
 - name: Reset etcd
   uri:
-    url: "http://{{ inventory_hostname }}:2379/v2/keys/{{ item }}?recursive=true"
+    url: "http://{{ public_ip }}:2379/v2/keys/{{ item }}?recursive=true"
     method: DELETE
     status_code: 200,202,204,404
   with_items:

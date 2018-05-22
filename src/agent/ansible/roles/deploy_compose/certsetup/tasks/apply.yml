@@ -99,6 +99,9 @@
     ordererorgs: "{{ orderers | map(attribute='org') | list  | unique | sort }}"
     allorgs: "{{ allcas | map(attribute='org') | list | unique | sort }}"    
 
+ set_fact:
+    orderercaorgs: "{{ allorderers | map(attribute='org') | list | unique | intersect(caorgs) }}"
+
 - name: Create orgs directories
   file:
     path: "{{ fabricworkdir }}/run/{{ item.0 }}/orgs/{{ item.1 }}"
@@ -128,7 +131,7 @@
               fabric-ca-client enroll -d
                 -u https://{{ ordererorg_ca.name }}.admin:adminpw@{{ ordererorg_ca.name }}:7054;
               chmod g+rwx $FABRIC_CA_CLIENT_HOME/msp'"
-  with_items: "{{ ordererorgs }}"
+  with_items: "{{ ordererorgs | union(orderercaorgs) }}"
 
 
 
@@ -217,9 +220,11 @@
 
 - name: Create admin/msp/admincerts directory
   file:
-    path: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item }}/admin/msp/admincerts"
+    path: "{{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/{{ item.1 }}/msp/admincerts"
     state: directory
-  with_items: "{{ allorgs }}"
+  with_nested:
+    - "{{ allorgs }}"
+    - ["", "admin"]
 
 - name: Copy certificates to tlscacerts/tlsintermeditecerts
   command: "cp -a {{ fabricworkdir }}/run/keyfiles/orgs/{{ item.0 }}/msp/{{ item.1 }}/. 
