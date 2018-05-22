@@ -99,7 +99,7 @@
     ordererorgs: "{{ orderers | map(attribute='org') | list  | unique | sort }}"
     allorgs: "{{ allcas | map(attribute='org') | list | unique | sort }}"    
 
- set_fact:
+- set_fact:
     orderercaorgs: "{{ allorderers | map(attribute='org') | list | unique | intersect(caorgs) }}"
 
 - name: Create orgs directories
