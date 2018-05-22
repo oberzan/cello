@@ -425,6 +425,10 @@
   with_items: "{{ peers }}"
   tags: "createchannel"
 
+- name: Find all anchor peers
+  set_fact:
+    anchor_peers: "{{ allpeers | selectattr('role', 'equalto', 'anchor') | list }}"
+
 - name: Update the anchor peers
   shell: 'docker exec -it {{ item.name }} bash -c "
             export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;

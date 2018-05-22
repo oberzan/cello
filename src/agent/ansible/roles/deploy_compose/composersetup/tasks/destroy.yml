@@ -11,7 +11,7 @@
       {{ peers + [{'org':item.split('@')[1].split('.')[-1],
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
-  with_items: "{{ fabric.network[hostvars[inventory_hostname].inter_name].peers | default([]) }}"
+  with_items: "{{ fabric.network[inventory_hostname].peers | default([]) }}"
 
 - name: Get the peer org list
   set_fact:

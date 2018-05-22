@@ -93,7 +93,7 @@
 
 - name: Install node
   environment:
-    NVM_DIR: /home/{{ fabric.ssh_user }}/.nvm
+    NVM_DIR: "{{ ansible_env.HOME }}/.nvm"
   shell: |
     . "$NVM_DIR/nvm.sh"
     . "$NVM_DIR/bash_completion"
@@ -110,8 +110,8 @@
 
 - name: Install composer npm packages globally.
   environment:
-    NVM_DIR: ~/.nvm
-    PATH: ~/.nvm/versions/node/v{{ fabric.nodejs_version }}/bin:{{ ansible_env.PATH }}
+    NVM_DIR: "{{ ansible_env.HOME }}/.nvm"
+    PATH: "{{ ansible_env.HOME }}/.nvm/versions/node/v{{ fabric.nodejs_version }}/bin:{{ ansible_env.PATH }}"
   npm:
     name: "{{ item }}"
     version: "{{ fabric.composer_tag }}"
@@ -189,12 +189,12 @@
   when: network | length > 0
   tags: "bnasetup"
 
-- name: Start composer playground
-  command: >-
-    docker run -v {{ localhome }}:/home/composer/.composer
-    -v {{ fabricworkdir }}:{{ fabricworkdir }}
-    --name composer-playground --publish 8080:8080
-    --detach hyperledger/composer-playground:{{ fabric.composer_tag }}
-    --dns-search fabricnet
-  tags: "startupplayground"
+# - name: Start composer playground
+#   command: >-
+#     docker run -v {{ localhome }}:/home/composer/.composer
+#     -v {{ fabricworkdir }}:{{ fabricworkdir }}
+#     --name composer-playground --publish 8080:8080
+#     --detach hyperledger/composer-playground:{{ fabric.composer_tag }}
+#     --dns-search fabricnet
+#   tags: "startupplayground"
 
