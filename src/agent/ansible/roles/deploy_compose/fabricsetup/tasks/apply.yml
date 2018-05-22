@@ -428,6 +428,7 @@
 - name: Find all anchor peers
   set_fact:
     anchor_peers: "{{ allpeers | selectattr('role', 'equalto', 'anchor') | list }}"
+  tags: "createchannel"
 
 - name: Update the anchor peers
   shell: 'docker exec -it {{ item.name }} bash -c "
