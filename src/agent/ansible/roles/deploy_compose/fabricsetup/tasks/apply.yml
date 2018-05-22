@@ -437,9 +437,9 @@
   tags: "createchannel"
 
 - name: Update the anchor peers
-  shell: 'docker exec -it {{ item.name }} bash -c "
+  shell: 'docker exec {{ item.name }} bash -c "
             export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/admin/msp;
-            peer channel update -c ${{ fabric.channel_name }}
+            peer channel update -c {{ fabric.channel_name }}
                                 -f /etc/hyperledger/peer/anchor.tx 
                                 -o {{ first_orderer.name }}:7050 
                                 --tls 
