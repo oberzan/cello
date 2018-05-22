@@ -443,7 +443,7 @@
                                 -f /etc/hyperledger/peer/anchor.tx 
                                 -o {{ first_orderer.name }}:7050 
                                 --tls 
-                                --cafile /etc/hyperledger/keyfiles/{{ item.org }}-ca-chain.pem"'
+                                --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem"'
                                 #--clientauth"'
   with_items: "{{ anchor_peers | intersect(peers) }}"
   tags: "createchannel"
