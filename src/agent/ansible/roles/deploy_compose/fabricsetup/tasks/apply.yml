@@ -403,6 +403,7 @@
                                 --timeout 120
                                 --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem "'
   when: first_peer in peers
+  register: task_result
   failed_when: task_result.rc != 0 and
                'Application at version 0' not in task_result.stderr
   tags: "createchannel"
