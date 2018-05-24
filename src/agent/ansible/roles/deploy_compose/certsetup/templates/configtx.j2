@@ -17,7 +17,7 @@ Organizations:
 {% endif %}
 
 Orderer: &OrdererDefaults
-  OrdererType: kafka
+  OrdererType: {{ fabric.orderer_type | default("kafka") }}
   Addresses:
 {%   for orderer in allorderers %}
     - {{ orderer.name }}:7050

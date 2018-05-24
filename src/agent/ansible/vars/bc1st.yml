@@ -58,7 +58,7 @@ fabric: {
   helper_tag: "0.4.6",
 
   # Composer settings
-  composer_tag: "0.19.4",
+  composer_tag: "0.19.6",
   nodejs_version: "8.11.1",
   bna_name: "voting-network",
 

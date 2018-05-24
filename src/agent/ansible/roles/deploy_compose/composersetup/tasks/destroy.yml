@@ -19,12 +19,12 @@
 
 - name: Delete PeerAdmin cards
   shell:
-    composer card delete -n PeerAdmin@{{ env }}-{{ item }}
+    composer card delete -c PeerAdmin@{{ env }}-{{ item }}
   with_items: "{{ peerorgs }}"
   ignore_errors: true
 
 - name: Delete network users' card
   shell:
-    composer card delete -n user-{{ item }}@marbles-network
+    composer card delete -c BNadmin-{{ item }}@{{ fabric.bna_name }}
   with_items: "{{ peerorgs }}"
   ignore_errors: true
