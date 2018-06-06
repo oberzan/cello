@@ -6,7 +6,7 @@
         "name": "member",
         "mspId": "{{ org }}"
       }
-    }{{ "," if not loop.last }}
+    }{{ "," if not loop.last else "" }}
 {% endfor %}
   ],
   "policy": {
@@ -14,7 +14,7 @@
 {% for i in range(allpeerorgs | length) %}
       {
         "signed-by": {{ i }}
-      },
+      }{{ "," if not loop.last else "" }}
 {% endfor %}
     ]
   }
