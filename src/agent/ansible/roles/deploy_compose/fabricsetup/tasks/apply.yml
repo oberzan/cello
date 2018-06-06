@@ -446,4 +446,7 @@
                                 --cafile /etc/hyperledger/keyfiles/{{ first_orderer.org }}-ca-chain.pem"'
                                 #--clientauth"'
   with_items: "{{ anchor_peers | intersect(peers) }}"
+  register: task_result
+  failed_when: task_result.rc != 0 and
+               'at version 0, but got version' not in task_result.stderr
   tags: "createchannel"

@@ -58,9 +58,12 @@ fabric: {
   helper_tag: "0.4.6",
 
   # Composer settings
-  composer_tag: "0.19.6",
+  composer_tag: "0.19.7",
   nodejs_version: "8.11.1",
-  bna_name: "voting-network",
+  bna: {
+    name: "voting-network",
+    version: "0.0.1"
+  },
 
   repo: {
     # the url defines docker hub project access point

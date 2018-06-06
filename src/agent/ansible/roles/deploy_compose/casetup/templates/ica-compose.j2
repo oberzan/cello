@@ -15,6 +15,7 @@ services:
       - FABRIC_CA_SERVER_INTERMEDIATE_TLS_CERTFILES=/keyfiles/{{ ca.org }}-ca-cert.pem
       - FABRIC_CA_SERVER_CSR_HOSTS={{ ca.name}}
       - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_AFFILIATIONS=""
       - FABRIC_CA_SERVER_DEBUG=true
       - PARENT_URL=https://rca.{{ ca.org }}.admin:adminpw@rca.{{ ca.org }}:7054
       - TARGET_CHAINFILE=/keyfiles/{{ ca.org }}-ca-chain.pem

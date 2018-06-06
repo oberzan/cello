@@ -46,14 +46,22 @@
   with_items:
     - "rca-compose"
     - "ica-compose"
-    - "ca-cli-compose"
+  when: cas | length 
+
+ name: Create compose files
+  template:
+    src: "{{ playbook_dir }}/../deploy_compose/casetup/templates/ca-cli-compose.j2"
+    dest: "{{ fabricworkdir }}/run/ca-cli-compose.yml"
 
 - name: Start CAs and cli
   command: "docker-compose -p {{ env }}.{{ item }} -f {{ fabricworkdir }}/run/{{ item }}.yml up -d"
   with_items:
     - "rca-compose"
     - "ica-compose"
-    - "ca-cli-compose"
+  when: cas | length
+
+  - name: Start CAs and cli
+    command: "docker-compose -p {{ env }}.ca-cli-compose -f {{ fabricworkdir }}/run/ca-cli-compose.yml up -d"
 
 - name: Create component list
   set_fact:

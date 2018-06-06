@@ -167,6 +167,13 @@
               chmod g+rwx $FABRIC_CA_CLIENT_HOME/msp'"
   with_items: "{{ peerorgs }}"
 
+name: Add affiliations
+  command: "docker exec ca-cli bash -c '
+              export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item }};
+              export FABRIC_CA_CLIENT_TLS_CERTFILES=/etc/hyperledger/keyfiles/{{ item }}-ca-chain.pem;
+              fabric-ca-client affiliation add {{ item }}'"
+  with_items: "{{ caorgs }}"
+
 - name: Register peers
   command: "docker exec ca-cli bash -c '
               export FABRIC_CA_CLIENT_HOME=/etc/hyperledger/keyfiles/orgs/{{ item.org }};

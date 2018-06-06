@@ -1,0 +1,19 @@
+{
+    "identities": [
+        {% for org in peerorgs %}
+        {
+            "role": {
+                "name": "member",
+                "mspId": "{{ org }}"
+            }
+        },
+        {% endfor %}
+    ],
+    "policy": {
+        "1-of": [
+            {
+                "signed-by": 0
+            }
+        ]
+    }
+}

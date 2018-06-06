@@ -12,7 +12,8 @@
     allcas: "{{ [] }}"
     allorderers: "{{ [] }}"
     localhome: "/home/{{ fabric.ssh_user }}/.composer"
-    network: "{{ fabric.bna_name | default('') }}"
+    network: "{{ fabric.bna.name | default('') }}"
+    network_version: "{{ fabric.bna.version | default('') }}"
   tags: [bnasetup, startupplayground]
 
 - name: Get peer container list
@@ -62,12 +63,12 @@
     path: "{{ localhome }}"
     state: "directory"
 
-- name: Pull composer container images from the docker hub
-  command: "docker pull {{ fabric.repo.url }}{{ item }}"
-  with_items:
-    - "composer-cli:{{ fabric.composer_tag }}"
-    - "composer-playground:{{ fabric.composer_tag }}"
-  tags: "pullcomposerimages"
+# - name: Pull composer container images from the docker hub
+#   command: "docker pull {{ fabric.repo.url }}{{ item }}"
+#   with_items:
+#     - "composer-cli:{{ fabric.composer_tag }}"
+#     - "composer-playground:{{ fabric.composer_tag }}"
+#   tags: "pullcomposerimages"
 
 # - name: Check if PeerAdmin card is already imported
 #   stat:
@@ -132,8 +133,8 @@
 
 - name:
   template:
-    src: "{{ playbook_dir }}/composersetup/templates/endorsement-policy.json"
-    dest: "{{ fabricworkdir }}/run/composer/"
+    src: "{{ playbook_dir }}/composersetup/templates/endorsement-policy.json.j2"
+    dest: "{{ fabricworkdir }}/run/composer/endorsement-policy.json"
 
 - name: Process admin key files
   find:
