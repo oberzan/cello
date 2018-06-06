@@ -60,8 +60,8 @@
     - "ica-compose"
   when: cas | length
 
-  - name: Start CAs and cli
-    command: "docker-compose -p {{ env }}.ca-cli-compose -f {{ fabricworkdir }}/run/ca-cli-compose.yml up -d"
+- name: Start CAs and cli
+  command: "docker-compose -p {{ env }}.ca-cli-compose -f {{ fabricworkdir }}/run/ca-cli-compose.yml up -d"
 
 - name: Create component list
   set_fact:
