@@ -48,7 +48,7 @@
     - "ica-compose"
   when: cas | length 
 
- name: Create compose files
+- name: Create compose files
   template:
     src: "{{ playbook_dir }}/../deploy_compose/casetup/templates/ca-cli-compose.j2"
     dest: "{{ fabricworkdir }}/run/ca-cli-compose.yml"
