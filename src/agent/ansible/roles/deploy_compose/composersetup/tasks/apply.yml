@@ -56,6 +56,7 @@
 - name: Get the peer org list
   set_fact:
     peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
+    allpeerorgs: "{{ allpeers | map(attribute='org') | list  | unique | sort }}"
   tags: "bnasetup"
 
 - name: Make sure that working directory exists

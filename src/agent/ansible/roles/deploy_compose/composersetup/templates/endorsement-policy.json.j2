@@ -1,19 +1,21 @@
 {
-    "identities": [
-        {% for org in peerorgs %}
-        {
-            "role": {
-                "name": "member",
-                "mspId": "{{ org }}"
-            }
-        },
-        {% endfor %}
-    ],
-    "policy": {
-        "1-of": [
-            {
-                "signed-by": 0
-            }
-        ]
-    }
+  "identities": [
+    {% for org in allpeerorgs %}
+    {
+      "role": {
+        "name": "member",
+        "mspId": "{{ org }}"
+      }
+    },
+    {% endfor %}
+  ],
+  "policy": {
+    "1-of": [
+    {% for i in range(allpeerorgs | length) %}
+      {
+        "signed-by": {{ i }}
+      },
+    {% endfor %}
+    ]
+  }
 }
