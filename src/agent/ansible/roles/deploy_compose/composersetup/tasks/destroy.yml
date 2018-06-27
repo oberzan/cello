@@ -25,6 +25,6 @@
 
 - name: Delete network users' card
   shell:
-    composer card delete -c BNadmin-{{ item }}@{{ fabric.bna_name }}
+    composer card delete -c BNadmin-{{ item }}@{{ fabric.bna.name }}
   with_items: "{{ peerorgs }}"
   ignore_errors: true

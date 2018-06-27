@@ -2,6 +2,7 @@
 - name: Setup variables
   set_fact:
     fabricworkdir: "/opt/gopath/{{ env }}/fabric"
+  tags: "cleanupworkingdir"
 
 - name: Check docker compose file stats
   stat:
@@ -53,3 +54,4 @@
   file:
     path: "{{ fabricworkdir }}/run"
     state: absent
+  tags: "cleanupworkingdir"

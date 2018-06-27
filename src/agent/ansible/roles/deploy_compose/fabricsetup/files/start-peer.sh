@@ -7,6 +7,14 @@
 #sleep 99999
 set -e
 
+# Run once, hold otherwise
+if [ -f "already_ran" ]; then
+    #echo "Already ran the Entrypoint once. Holding indefinitely for debugging."
+    #cat
+    peer node start
+fi
+touch already_ran
+
 # Enroll the peer to get a TLS cert
 fabric-ca-client enroll -d --enrollment.profile tls -u $ENROLLMENT_URL -M /tmp/tls --csr.hosts $(hostname)
 # Copy the TLS key and cert to the appropriate place
