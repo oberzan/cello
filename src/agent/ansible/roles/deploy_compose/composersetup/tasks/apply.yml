@@ -14,7 +14,7 @@
     localhome: "/home/{{ fabric.ssh_user }}/.composer"
     network: "{{ fabric.bna.name | default('') }}"
     network_version: "{{ fabric.bna.version | default('') }}"
-  tags: [bnasetup, startupplayground]
+  tags: [bnasetup, bnadmincards, startupplayground]
 
 - name: Get peer container list
   set_fact:
