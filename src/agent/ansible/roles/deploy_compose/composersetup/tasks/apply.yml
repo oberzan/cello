@@ -23,7 +23,7 @@
         'name':item.split('@')[1],
         'role':item.split('@')[0]}] }}
   with_items: "{{ fabric.network[hostvars[inventory_hostname].inter_name].peers | default([]) }}"
-  tags: "bnasetup"
+  tags: ["bnasetup", "bnadmincards"]
 
 - name:
   set_fact:
@@ -57,7 +57,7 @@
   set_fact:
     peerorgs: "{{ peers | map(attribute='org') | list  | unique | sort }}"
     allpeerorgs: "{{ allpeers | map(attribute='org') | list  | unique | sort }}"
-  tags: "bnasetup"
+  tags: ["bnasetup", "bnadmincards"]
 
 - name: Make sure that working directory exists
   file:
@@ -187,7 +187,7 @@
 
 ################################
 
-- include_tasks: bnasetup.yml
+- import_tasks: bnasetup.yml
   when: network | length > 0
   tags: "bnasetup"
 
